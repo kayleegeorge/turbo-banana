@@ -1,0 +1,1 @@
+Use bun instead of npm or yarn.
