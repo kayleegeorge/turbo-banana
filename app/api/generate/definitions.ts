@@ -29,7 +29,6 @@ Requirements:
 - Return only the descriptions, one per line without any other text
 - Each description is separated by a newline
 - Do not include numbers or bullet points
-- Make them diverse and interesting
 
 Example format:
 A tall corn plant with golden kernels and green leaves swaying in the breeze

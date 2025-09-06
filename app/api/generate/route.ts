@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
 
       // Create image generation requests for each definition
       const imageRequests: ImageGenerationRequest[] = definitionsResult.definitions.map(definition => ({
-        prompt: `Create an image of: ${definition}. Match the style and artistic approach of the reference image provided.`,
+        prompt: `Create an image of: ${definition}. Match the style and artistic approach of the reference image provided. Make the background transparent.`,
         imageData: body.styleImage,
         mimeType: body.mimeType || 'image/png'
       }));
