@@ -108,22 +108,22 @@ export async function POST(request: NextRequest) {
 
       // If setId is provided, save successful images to database and blob store
       let savedResults = null;
-      // if (body.setId && imageResults.some(r => r.success)) {
-      //   const imagesToSave = imageResults
-      //     .map((result, index) => ({
-      //       id: `${body.setId}-${Date.now()}-${index}`,
-      //       imageData: result.imageData || '',
-      //       definition: definitionsResult.definitions![index]
-      //     }))
-      //     .filter(img => img.imageData); // Only save images that have data
+      if (body.setId && imageResults.some(r => r.success)) {
+        const imagesToSave = imageResults
+          .map((result, index) => ({
+            id: crypto.randomUUID(),
+            imageData: result.imageData || '',
+            definition: definitionsResult.definitions![index]
+          }))
+          .filter(img => img.imageData); // Only save images that have data
 
-      //   try {
-      //     savedResults = await saveGeneratedImages(imagesToSave, body.setId);
-      //   } catch (error) {
-      //     console.error('Failed to save images:', error);
-      //     // Continue without saving - return generation results anyway
-      //   }
-      // }
+        try {
+          savedResults = await saveGeneratedImages(imagesToSave, body.setId);
+        } catch (error) {
+          console.error('Failed to save images:', error);
+          // Continue without saving - return generation results anyway
+        }
+      }
 
       return NextResponse.json({
         success: true,

@@ -118,8 +118,6 @@ export async function generateImagesBatch(
       }
     }
   }
-
-  console.log(results);
   
   return results;
 }

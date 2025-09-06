@@ -3,6 +3,7 @@
 import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { RotateCcw, Loader2 } from 'lucide-react';
+import { removeBackgroundBatch } from '@/app/lib/imageUtils';
 
 
 
@@ -29,6 +30,8 @@ export default function SetPage({ params }: PageProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [setPrompt, setSetPrompt] = useState('');
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
+  const [processedImages, setProcessedImages] = useState<{[key: string]: string}>({});
+  const [isProcessingImages, setIsProcessingImages] = useState(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [isLoadingImages, setIsLoadingImages] = useState(true);
   const [project, setProject] = useState<any>(null);
@@ -74,6 +77,31 @@ export default function SetPage({ params }: PageProps) {
             success: true,
           }));
           setGeneratedImages(loadedImages);
+          
+          // Process loaded images to remove backgrounds
+          setIsProcessingImages(true);
+          try {
+            const imagesToProcess = loadedImages
+              .filter(img => img.success && img.imageUrl)
+              .map(img => ({
+                id: img.id,
+                imageData: img.imageUrl!
+              }));
+            
+            if (imagesToProcess.length > 0) {
+              const backgroundRemoved = await removeBackgroundBatch(imagesToProcess, 'black', 30);
+              const processedMap: {[key: string]: string} = {};
+              backgroundRemoved.forEach(result => {
+                processedMap[result.id] = result.processedImageData;
+              });
+              setProcessedImages(processedMap);
+            }
+          } catch (error) {
+            console.error('Failed to remove backgrounds from loaded images:', error);
+            // Continue without background removal
+          } finally {
+            setIsProcessingImages(false);
+          }
         }
       } catch (error) {
         console.error('Failed to load existing images:', error);
@@ -220,6 +248,31 @@ export default function SetPage({ params }: PageProps) {
         });
 
         setGeneratedImages(processedImages);
+        
+        // Process images to remove backgrounds
+        setIsProcessingImages(true);
+        try {
+          const imagesToProcess = processedImages
+            .filter(img => img.success && img.imageData)
+            .map(img => ({
+              id: img.id,
+              imageData: `data:image/png;base64,${img.imageData}`
+            }));
+          
+          if (imagesToProcess.length > 0) {
+            const backgroundRemoved = await removeBackgroundBatch(imagesToProcess, 'black', 30);
+            const processedMap: {[key: string]: string} = {};
+            backgroundRemoved.forEach(result => {
+              processedMap[result.id] = result.processedImageData;
+            });
+            setProcessedImages(processedMap);
+          }
+        } catch (error) {
+          console.error('Failed to remove backgrounds:', error);
+          // Continue without background removal
+        } finally {
+          setIsProcessingImages(false);
+        }
       } else {
         setGenerationError(result.error || 'Failed to generate images. Please try again.');
       }
@@ -232,8 +285,8 @@ export default function SetPage({ params }: PageProps) {
 
 
 
-  // Generate empty cards for the grid - default to 12 items
-  const itemCount = 12;
+  // Generate cards based on the number of generated images, or default to 12 if no images
+  const itemCount = generatedImages.length > 0 ? generatedImages.length : 12;
   const emptyCards = Array.from({ length: itemCount }, (_, index) => index);
 
   return (
@@ -356,10 +409,13 @@ export default function SetPage({ params }: PageProps) {
             const generatedImage = generatedImages[index];
             const hasImage = generatedImage && generatedImage.success;
             
-            // Prefer saved URL, fallback to base64 data, then default placeholder
+            // Prefer processed image, then saved URL, fallback to base64 data, then default placeholder
             let imageUrl = '/labubu-a.png';
             if (hasImage) {
-              if (generatedImage.imageUrl) {
+              // Use processed image with removed background if available
+              if (processedImages[generatedImage.id]) {
+                imageUrl = processedImages[generatedImage.id];
+              } else if (generatedImage.imageUrl) {
                 imageUrl = generatedImage.imageUrl;
               } else if (generatedImage.imageData) {
                 imageUrl = `data:image/png;base64,${generatedImage.imageData}`;
@@ -385,6 +441,16 @@ export default function SetPage({ params }: PageProps) {
                     ITEM {String(index + 1).padStart(2, '0')}
                   </span>
                 </div>
+                
+                {/* Processing indicator */}
+                {isProcessingImages && hasImage && !processedImages[generatedImage.id] && (
+                  <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+                    <div className="text-white text-xs flex items-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Processing...
+                    </div>
+                  </div>
+                )}
                 
                 {/* Error indicator if generation failed */}
                 {generatedImage && !generatedImage.success && (
