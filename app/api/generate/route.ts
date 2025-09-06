@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
         images: imagesToUse
       }));
 
-      const maxConcurrency = body.maxConcurrency || 3;
+      const maxConcurrency = body.maxConcurrency || 50;
       const imageResults = await generateImagesBatch(imageRequests, maxConcurrency);
 
       // If setId is provided, save successful images to database and blob store
@@ -150,7 +150,7 @@ export async function POST(request: NextRequest) {
     
     // Handle batch image generation
     if (body.requests && Array.isArray(body.requests)) {
-      const maxConcurrency = body.maxConcurrency || 3;
+      const maxConcurrency = body.maxConcurrency || 50;
       const results = await generateImagesBatch(body.requests, maxConcurrency);
       
       return NextResponse.json({
