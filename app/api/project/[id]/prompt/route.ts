@@ -24,10 +24,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       coverImageId: currentProject.coverImageId
     });
 
-    // Delete all existing project attachments (prompt images)
-    await deleteProjectAttachments(projectId);
-
-    // Handle image uploads
+    // Handle new image uploads only (don't delete existing attachments)
     const imageIds: string[] = [];
     const entries = Array.from(formData.entries());
     

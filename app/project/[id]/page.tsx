@@ -413,9 +413,9 @@ export default function ProjectPage({ params }: PageProps) {
             
             {/* Master Prompt */}
             <div 
-              className="rounded-lg relative overflow-hidden" 
+              className="rounded-lg relative overflow-hidden mb-8" 
               style={{ 
-                aspectRatio: '1.618/1', 
+                aspectRatio: '4/1', 
                 backgroundColor: '#1D1D1D' 
               }}
             >
@@ -447,82 +447,36 @@ export default function ProjectPage({ params }: PageProps) {
                   </div>
                 </div>
                 
-                {/* Content area with images and textarea */}
-                <div className="flex-1 flex flex-col pr-16">
-                  {/* Images Display - Both Saved and New */}
-                  {(savedPromptImageUrls.length > 0 || promptImages.length > 0) && (
-                    <div className="mb-4 flex flex-wrap gap-3">
-                      {/* Display saved images */}
-                      {savedPromptImageUrls.map((imageUrl, index) => (
-                        <div key={`saved-${index}`} className="relative group">
-                          <img
-                            src={imageUrl}
-                            alt={`Saved prompt image ${index + 1}`}
-                            className="w-20 h-20 object-cover rounded-lg border border-gray-600 shadow-sm"
-                          />
-                          <button
-                            onClick={() => handleRemoveSavedImage(index)}
-                            className="absolute -top-2 -right-2 w-6 h-6 bg-gray-800 hover:bg-red-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-lg border border-gray-600"
-                          >
-                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          </button>
-                        </div>
-                      ))}
-                      
-                      {/* Display new images to be saved */}
-                      {promptImages.map((image, index) => (
-                        <div key={`new-${index}`} className="relative group">
-                          <img
-                            src={URL.createObjectURL(image)}
-                            alt={`New prompt image ${index + 1}`}
-                            className="w-20 h-20 object-cover rounded-lg border border-yellow-600 shadow-sm"
-                          />
-                          <button
-                            onClick={() => handleRemoveImage(index)}
-                            className="absolute -top-2 -right-2 w-6 h-6 bg-gray-800 hover:bg-red-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-lg border border-gray-600"
-                          >
-                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                {/* Textarea with attachment button */}
+                <div className="flex-1 relative">
+                  <textarea
+                    value={projectPrompt}
+                    onChange={(e) => setProjectPrompt(e.target.value)}
+                    onPaste={handlePaste}
+                    placeholder="Enter your project prompt here..."
+                    className="w-full h-full bg-transparent border-none focus:outline-none focus:ring-0 text-white placeholder-gray-400 resize-none pr-12 pb-12"
+                    style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}
+                  />
                   
-                  {/* Textarea with attachment button */}
-                  <div className="flex-1 relative">
-                    <textarea
-                      value={projectPrompt}
-                      onChange={(e) => setProjectPrompt(e.target.value)}
-                      onPaste={handlePaste}
-                      placeholder="Enter your project prompt here..."
-                      className="w-full h-full bg-transparent border-none focus:outline-none focus:ring-0 text-white placeholder-gray-400 resize-none pr-12 pb-12"
-                      style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}
+                  {/* Paperclip/Attachment button */}
+                  <div className="absolute bottom-2 left-2">
+                    <input
+                      type="file"
+                      id="prompt-images"
+                      multiple
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="hidden"
                     />
-                    
-                    {/* Paperclip/Attachment button */}
-                    <div className="absolute bottom-2 left-2">
-                      <input
-                        type="file"
-                        id="prompt-images"
-                        multiple
-                        accept="image/*"
-                        onChange={handleImageUpload}
-                        className="hidden"
-                      />
-                      <label
-                        htmlFor="prompt-images"
-                        className="inline-flex items-center justify-center w-8 h-8 bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white rounded-full cursor-pointer transition-all shadow-sm"
-                        title="Attach images"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-                        </svg>
-                      </label>
-                    </div>
+                    <label
+                      htmlFor="prompt-images"
+                      className="inline-flex items-center justify-center w-8 h-8 bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white rounded-full cursor-pointer transition-all shadow-sm"
+                      title="Attach images"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                      </svg>
+                    </label>
                   </div>
                 </div>
                 
@@ -545,6 +499,98 @@ export default function ProjectPage({ params }: PageProps) {
                 </button>
               </div>
             </div>
+
+            {/* Gallery Section - Below Project Prompt */}
+            {(savedPromptImageUrls.length > 0 || promptImages.length > 0) && (
+              <div className="mb-8">
+                <div className="mb-4 flex items-center gap-2">
+                  <h2 className="font-['Helvetica'] text-sm font-medium text-white uppercase tracking-tight">
+                    ATTACHMENTS
+                  </h2>
+                </div>
+                <div className="grid grid-cols-4 gap-3">
+                  {/* Display saved images with varying sizes */}
+                  {savedPromptImageUrls.map((imageUrl, index) => {
+                    const isLarge = index % 5 === 0;
+                    const isTall = index % 5 === 2;
+                    return (
+                      <div 
+                        key={`saved-${index}`} 
+                        className={`relative group overflow-hidden rounded-xl shadow-lg border border-gray-600/30 hover:shadow-xl transition-all duration-300 hover:scale-[1.02] ${
+                          isLarge ? 'col-span-2 row-span-2 aspect-square' :
+                          isTall ? 'row-span-2 aspect-[3/4]' : 
+                          'aspect-square'
+                        }`}
+                        style={{
+                          background: `linear-gradient(135deg, ${
+                            index % 4 === 0 ? 'rgba(59, 130, 246, 0.1)' : 
+                            index % 4 === 1 ? 'rgba(168, 85, 247, 0.1)' : 
+                            index % 4 === 2 ? 'rgba(34, 197, 94, 0.1)' : 
+                            'rgba(251, 146, 60, 0.1)'
+                          } 0%, transparent 100%)`
+                        }}
+                      >
+                        <img
+                          src={imageUrl}
+                          alt={`Saved prompt image ${index + 1}`}
+                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                        <button
+                          onClick={() => handleRemoveSavedImage(index)}
+                          className="absolute top-2 right-2 w-7 h-7 bg-black/70 hover:bg-red-600/90 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 backdrop-blur-sm border border-white/20"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    );
+                  })}
+                  
+                  {/* Display new images to be saved */}
+                  {promptImages.map((image, index) => {
+                    const totalSaved = savedPromptImageUrls.length;
+                    const adjustedIndex = totalSaved + index;
+                    const isLarge = adjustedIndex % 5 === 0;
+                    const isTall = adjustedIndex % 5 === 2;
+                    return (
+                      <div 
+                        key={`new-${index}`} 
+                        className={`relative group overflow-hidden rounded-xl shadow-lg border border-gray-600/30 hover:shadow-xl transition-all duration-300 hover:scale-[1.02] ${
+                          isLarge ? 'col-span-2 row-span-2 aspect-square' :
+                          isTall ? 'row-span-2 aspect-[3/4]' : 
+                          'aspect-square'
+                        }`}
+                        style={{
+                          background: `linear-gradient(135deg, ${
+                            adjustedIndex % 4 === 0 ? 'rgba(59, 130, 246, 0.1)' : 
+                            adjustedIndex % 4 === 1 ? 'rgba(168, 85, 247, 0.1)' : 
+                            adjustedIndex % 4 === 2 ? 'rgba(34, 197, 94, 0.1)' : 
+                            'rgba(251, 146, 60, 0.1)'
+                          } 0%, transparent 100%)`
+                        }}
+                      >
+                        <img
+                          src={URL.createObjectURL(image)}
+                          alt={`New prompt image ${index + 1}`}
+                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                        <button
+                          onClick={() => handleRemoveImage(index)}
+                          className="absolute top-2 right-2 w-7 h-7 bg-black/70 hover:bg-red-600/90 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 backdrop-blur-sm border border-white/20"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Right Column - Sets starting at title level */}
