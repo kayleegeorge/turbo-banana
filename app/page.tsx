@@ -1,210 +1,197 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+
+// Sample project data
+const sampleProjects = [
+  {
+    id: 1,
+    title: 'THE MONSTERS',
+    description: 'A modern e-commerce solution built with Next.js and TypeScript',
+    status: 'Active',
+    lastUpdated: '2 days ago',
+    tags: ['Next.js', 'TypeScript', 'Tailwind CSS']
+  },
+  {
+    id: 2,
+    title: 'TERRARIA',
+    description: 'Collaborative task management tool with real-time updates',
+    status: 'In Progress',
+    lastUpdated: '5 hours ago',
+    tags: ['React', 'Node.js', 'Socket.io']
+  },
+  {
+    id: 3,
+    title: 'Analytics Dashboard',
+    description: 'Data visualization dashboard for business insights',
+    status: 'Completed',
+    lastUpdated: '1 week ago',
+    tags: ['React', 'D3.js', 'Python']
+  },
+  {
+    id: 4,
+    title: 'Mobile Banking App',
+    description: 'Secure mobile banking application with biometric authentication',
+    status: 'Active',
+    lastUpdated: '3 days ago',
+    tags: ['React Native', 'Node.js', 'MongoDB']
+  },
+  {
+    id: 5,
+    title: 'AI Chat Assistant',
+    description: 'Intelligent chat assistant powered by machine learning',
+    status: 'In Progress',
+    lastUpdated: '1 day ago',
+    tags: ['Python', 'TensorFlow', 'FastAPI']
+  },
+  {
+    id: 6,
+    title: 'Video Streaming Platform',
+    description: 'Netflix-like streaming platform with content management',
+    status: 'Planning',
+    lastUpdated: '4 days ago',
+    tags: ['React', 'AWS', 'CDN']
+  }
+];
 
 export default function Home() {
-  const [selectedImage, setSelectedImage] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string>('');
-  const [prompt, setPrompt] = useState('');
-  const [count, setCount] = useState(5);
-  const [isLoading, setIsLoading] = useState(false);
-  const [results, setResults] = useState<any>(null);
-  const [error, setError] = useState('');
+  const router = useRouter();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [projectTitle, setProjectTitle] = useState('');
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setSelectedImage(file);
-      const reader = new FileReader();
-      reader.onload = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const convertImageToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const result = reader.result as string;
-        // Remove the data URL prefix to get just the base64 string
-        resolve(result.split(',')[1]);
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-  };
-
-  const handleGenerate = async () => {
-    if (!selectedImage || !prompt.trim()) {
-      setError('Please upload an image and enter a prompt');
-      return;
-    }
-
-    setIsLoading(true);
-    setError('');
-    setResults(null);
-
-    try {
-      const base64Image = await convertImageToBase64(selectedImage);
-      
-      const response = await fetch('/api/generate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          styleImage: base64Image,
-          prompt: prompt.trim(),
-          count: count,
-          mimeType: selectedImage.type
-        }),
-      });
-
-      const data = await response.json();
-      
-      if (data.success) {
-        setResults(data);
-      } else {
-        setError(data.error || 'Generation failed');
-      }
-    } catch (err) {
-      setError('An error occurred during generation');
-      console.error('Generation error:', err);
-    } finally {
-      setIsLoading(false);
+  const handleCreateProject = () => {
+    if (projectTitle.trim()) {
+      // TODO: Add API call to create project
+      console.log('Creating project:', projectTitle);
+      setIsModalOpen(false);
+      setProjectTitle('');
+      // For now, just close the modal
     }
   };
 
   return (
-    <div className="font-sans min-h-screen p-8">
-      <main className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold mb-8 text-center">Image Generation Tester</h1>
-        
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Input Section */}
-          <div className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium mb-2">Upload Style Image</label>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleImageUpload}
-                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-              />
-              {imagePreview && (
-                <div className="mt-4">
-                  <img
-                    src={imagePreview}
-                    alt="Preview"
-                    className="max-w-full h-auto max-h-64 rounded-lg shadow-md"
-                  />
-                </div>
-              )}
-            </div>
+    <div className="min-h-screen bg-background text-foreground">
+      <div className="px-6 py-8">
+        {/* Header Section */}
+        <div className="mb-8">
+          <h1 className="text-5xl mb-2 tracking-tighter">Projects</h1>
+          <p className="text-gray-600 dark:text-gray-400 tracking-tighter text-lg">Manage and track your projects</p>
+        </div>
 
-            <div>
-              <label className="block text-sm font-medium mb-2">Prompt</label>
-              <textarea
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                placeholder="Describe what you want to generate..."
-                className="w-full p-3 border border-gray-300 rounded-lg resize-none h-32"
-              />
-            </div>
 
-            <div>
-              <label className="block text-sm font-medium mb-2">Number of Images</label>
-              <input
-                type="number"
-                value={count}
-                onChange={(e) => setCount(parseInt(e.target.value) || 1)}
-                min="1"
-                max="10"
-                className="w-full p-3 border border-gray-300 rounded-lg"
-              />
-            </div>
-
-            <button
-              onClick={handleGenerate}
-              disabled={isLoading || !selectedImage || !prompt.trim()}
-              className="w-full py-3 px-4 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+        {/* Projects Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          {/* First 2 Project Cards */}
+          {sampleProjects.slice(0, 2).map((project, index) => (
+            <div
+              key={project.id}
+              onClick={() => router.push(`/project/${project.id}`)}
+              className="rounded-lg hover:shadow-lg transition-shadow cursor-pointer relative overflow-hidden"
+              style={{ 
+                aspectRatio: '1.618 / 1', 
+                backgroundColor: '#1D1D1D',
+                backgroundImage: `url(/${index === 0 ? 'labubu-a.png' : 'isometric-house.png'})`,
+                backgroundSize: index === 0 ? '250px' : '200px',
+                backgroundPosition: 'center',
+                backgroundRepeat: 'no-repeat'
+              }}
             >
-              {isLoading ? 'Generating...' : 'Generate Images'}
-            </button>
-
-            {error && (
-              <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg">
-                {error}
-              </div>
-            )}
-          </div>
-
-          {/* Results Section */}
-          <div className="space-y-6">
-            <h2 className="text-xl font-semibold">Results</h2>
-            
-            {isLoading && (
-              <div className="text-center py-8">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-                <p className="mt-4 text-gray-600">Generating images...</p>
-              </div>
-            )}
-
-            {results && (
-              <div className="space-y-4">
-                <div className="p-4 bg-green-50 border border-green-200 text-green-700 rounded-lg">
-                  <p><strong>Success!</strong> Generated {results.successfulImages} of {results.totalGenerated} images</p>
-                  <p><strong>Original Prompt:</strong> {results.originalPrompt}</p>
+              {/* Content Container */}
+              <div className="p-6 h-full flex flex-col justify-between">
+                {/* Project Title */}
+                <div className="font-['Helvetica'] text-sm font-medium text-white uppercase tracking-tight line-clamp-3">
+                  PROJECT {String(index + 1).padStart(2, '0')}: {project.title.toUpperCase()}
                 </div>
-
-                {results.definitions && (
-                  <div>
-                    <h3 className="font-medium mb-2">Generated Definitions:</h3>
-                    <ul className="space-y-1">
-                      {results.definitions.map((def: string, index: number) => (
-                        <li key={index} className="p-2 bg-gray-50 rounded text-sm">
-                          {index + 1}. {def}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {results.images && (
-                  <div>
-                    <h3 className="font-medium mb-2">Generated Images:</h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {results.images.map((image: any, index: number) => (
-                        <div key={index} className="space-y-2">
-                          {image.success && image.imageData ? (
-                            <img
-                              src={`data:image/png;base64,${image.imageData}`}
-                              alt={`Generated ${index + 1}`}
-                              className="w-full h-auto rounded-lg shadow-md"
-                            />
-                          ) : (
-                            <div className="w-full h-32 bg-red-50 border border-red-200 rounded-lg flex items-center justify-center text-red-600">
-                              Failed: {image.error || 'Unknown error'}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                
+                {/* Updated Timestamp */}
+                <div className="font-['IBM_Plex_Mono'] text-xs text-gray-400 uppercase tracking-wider">
+                  UPDATED {project.lastUpdated.toUpperCase()}
+                </div>
               </div>
-            )}
-
-            {!isLoading && !results && (
-              <div className="text-center py-8 text-gray-500">
-                Upload an image and enter a prompt to get started
-              </div>
-            )}
+            </div>
+          ))}
+          
+          {/* Create New Project Card */}
+          <div
+            onClick={() => setIsModalOpen(true)}
+            className="rounded-lg hover:shadow-lg transition-shadow cursor-pointer relative overflow-hidden flex items-center justify-center"
+            style={{ aspectRatio: '1.618 / 1', backgroundColor: '#1D1D1D' }}
+          >
+            {/* White Circle with Plus */}
+            <div className="w-24 h-24 bg-white dark:bg-gray-100 rounded-full flex items-center justify-center shadow-lg">
+              <svg 
+                className="w-8 h-8 text-gray-600 dark:text-gray-700" 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round" 
+                  strokeWidth={2} 
+                  d="M12 4v16m8-8H4" 
+                />
+              </svg>
+            </div>
           </div>
         </div>
-      </main>
+
+        {/* Create Project Modal */}
+        {isModalOpen && (
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50"
+            onClick={() => {
+              setIsModalOpen(false);
+              setProjectTitle('');
+            }}
+          >
+              <div 
+                className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-lg p-6 w-full max-w-md mx-4 shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+              <h2 className="text-xl text-gray-900 dark:text-white mb-4">
+                Create Project
+              </h2>
+              
+              <div className="mb-4">
+                <label htmlFor="project-title" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  PROJECT TITLE
+                </label>
+                <input
+                  id="project-title"
+                  type="text"
+                  value={projectTitle}
+                  onChange={(e) => setProjectTitle(e.target.value)}
+                  placeholder="Enter project title..."
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  autoFocus
+                />
+              </div>
+              
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => {
+                    setIsModalOpen(false);
+                    setProjectTitle('');
+                  }}
+                  className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleCreateProject}
+                  disabled={!projectTitle.trim()}
+                  className="px-4 py-2 bg-white hover:bg-gray-100 disabled:bg-gray-400 disabled:cursor-not-allowed text-black disabled:text-white border border-gray-300 rounded-md transition-colors"
+                >
+                  Create Project
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+      </div>
     </div>
   );
 }

@@ -8,6 +8,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "lucide-react": "^0.542.0",
     "@google/genai": "^1.17.0",
     "@neondatabase/serverless": "^1.0.1",
     "@vercel/blob": "^1.1.1",
@@ -16,11 +17,11 @@
     "react-dom": "19.1.0"
   },
   "devDependencies": {
-    "typescript": "^5",
+    "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "@tailwindcss/postcss": "^4",
-    "tailwindcss": "^4"
+    "tailwindcss": "^4",
+    "typescript": "^5"
   }
 }
