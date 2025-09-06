@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, IBM_Plex_Mono } from "next/font/google";
+import Link from "next/link";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -30,9 +31,11 @@ function Navbar() {
         <div className="flex justify-between items-center h-16 relative">
           {/* Left side - Logo */}
           <div className="flex items-center">
-            <h1 className="text-lg font-bold italic text-gray-900 dark:text-white">
-              TurboBanana
-            </h1>
+            <Link href="/" className="cursor-pointer">
+              <h1 className="text-lg font-bold italic text-gray-900 dark:text-white hover:opacity-80 transition-opacity">
+                TurboBanana
+              </h1>
+            </Link>
           </div>
 
           {/* Right side - Gradient Sphere */}
