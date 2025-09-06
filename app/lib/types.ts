@@ -3,6 +3,7 @@ export type Project = {
     name: string;
     prompt: string | null;
     coverImageId: string | null;
+    firstImageUrl?: string | null;
 }
 
 export type ProjectAttachment = {
@@ -15,6 +16,7 @@ export type Set = {
     projectId: string;
     name: string;
     prompts: string | null;
+    firstImageUrl?: string | null;
 }
 
 export type Image = {

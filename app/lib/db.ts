@@ -110,6 +110,44 @@ export async function getProject(id: string) {
     const promptImageUrls = promptImageData.filter(Boolean).map(data => data!.url);
     const promptAttachments = promptImageData.filter(Boolean);
 
+    // For each set, get the first image
+    const setsWithImages = await Promise.all(
+        sets.map(async (set) => {
+            try {
+                // Query for first image in this set
+                const firstImage = await sql`
+                    SELECT id FROM images 
+                    WHERE set_id = ${set.id} 
+                    LIMIT 1
+                `;
+                
+                let firstImageUrl = null;
+                if (firstImage.length > 0) {
+                    // Get the image URL from blob storage
+                    const imageUrls = await listImages(firstImage[0].id);
+                    if (imageUrls.length > 0) {
+                        firstImageUrl = imageUrls[0];
+                    }
+                }
+                
+                return {
+                    id: set.id,
+                    name: set.name,
+                    prompts: set.prompts,
+                    firstImageUrl
+                };
+            } catch (error) {
+                console.error(`Error getting first image for set ${set.id}:`, error);
+                return {
+                    id: set.id,
+                    name: set.name,
+                    prompts: set.prompts,
+                    firstImageUrl: null
+                };
+            }
+        })
+    );
+
     const project = {
         id: details[0].id,
         name: details[0].name,
@@ -117,11 +155,7 @@ export async function getProject(id: string) {
         coverImageId: details[0].cover_image_id,
         promptImageUrls: promptImageUrls,
         promptAttachments: promptAttachments,
-        sets: sets.map((set) => ({
-            id: set.id,
-            name: set.name,
-            prompts: set.prompts,
-        })),
+        sets: setsWithImages,
     }
     return project;
 }

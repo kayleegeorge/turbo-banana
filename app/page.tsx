@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Project } from './lib/types';
+import { removeBackground } from './lib/imageUtils';
 
 
 export default function Home() {
@@ -13,6 +14,7 @@ export default function Home() {
   const [editingName, setEditingName] = useState('');
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+  const [processedImages, setProcessedImages] = useState<{[key: string]: string}>({});
 
   useEffect(() => {
     async function fetchProjects() {
@@ -22,6 +24,23 @@ export default function Home() {
         const data = await response.json();
         if (data.success) {
           setProjects(data.projects);
+          
+          // Process images to remove backgrounds
+          const projectsWithImages = data.projects.filter((p: Project) => p.firstImageUrl);
+          if (projectsWithImages.length > 0) {
+            const processedMap: {[key: string]: string} = {};
+            
+            for (const project of projectsWithImages) {
+              try {
+                const processedImage = await removeBackground(project.firstImageUrl!, 'black', 30);
+                processedMap[project.id] = processedImage;
+              } catch (error) {
+                console.error(`Failed to process image for project ${project.id}:`, error);
+              }
+            }
+            
+            setProcessedImages(processedMap);
+          }
         }
       } catch (error) {
         console.error('Error fetching projects:', error);
@@ -190,8 +209,19 @@ export default function Home() {
                 backgroundColor: '#1D1D1D'
               }}
             >
+              {/* Generated Image in Center */}
+              {project.firstImageUrl && (
+                <div className="absolute inset-0 flex items-center justify-center p-8">
+                  <img
+                    src={processedImages[project.id] || project.firstImageUrl}
+                    alt="Generated content preview"
+                    className="max-w-full max-h-full object-contain"
+                  />
+                </div>
+              )}
+              
               {/* Content Container */}
-              <div className="p-6 h-full flex flex-col justify-between">
+              <div className="p-6 h-full flex flex-col justify-between relative z-10">
                 {/* Project Title */}
                 {editingProject === project.id ? (
                   <div className="w-full" onClick={(e) => e.stopPropagation()}>
