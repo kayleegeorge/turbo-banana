@@ -1,103 +1,210 @@
-import Image from "next/image";
+'use client';
+
+import { useState } from 'react';
 
 export default function Home() {
-  return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>('');
+  const [prompt, setPrompt] = useState('');
+  const [count, setCount] = useState(5);
+  const [isLoading, setIsLoading] = useState(false);
+  const [results, setResults] = useState<any>(null);
+  const [error, setError] = useState('');
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedImage(file);
+      const reader = new FileReader();
+      reader.onload = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const convertImageToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        // Remove the data URL prefix to get just the base64 string
+        resolve(result.split(',')[1]);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleGenerate = async () => {
+    if (!selectedImage || !prompt.trim()) {
+      setError('Please upload an image and enter a prompt');
+      return;
+    }
+
+    setIsLoading(true);
+    setError('');
+    setResults(null);
+
+    try {
+      const base64Image = await convertImageToBase64(selectedImage);
+      
+      const response = await fetch('/api/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          styleImage: base64Image,
+          prompt: prompt.trim(),
+          count: count,
+          mimeType: selectedImage.type
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        setResults(data);
+      } else {
+        setError(data.error || 'Generation failed');
+      }
+    } catch (err) {
+      setError('An error occurred during generation');
+      console.error('Generation error:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="font-sans min-h-screen p-8">
+      <main className="max-w-4xl mx-auto">
+        <h1 className="text-3xl font-bold mb-8 text-center">Image Generation Tester</h1>
+        
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Input Section */}
+          <div className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium mb-2">Upload Style Image</label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleImageUpload}
+                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+              />
+              {imagePreview && (
+                <div className="mt-4">
+                  <img
+                    src={imagePreview}
+                    alt="Preview"
+                    className="max-w-full h-auto max-h-64 rounded-lg shadow-md"
+                  />
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">Prompt</label>
+              <textarea
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                placeholder="Describe what you want to generate..."
+                className="w-full p-3 border border-gray-300 rounded-lg resize-none h-32"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">Number of Images</label>
+              <input
+                type="number"
+                value={count}
+                onChange={(e) => setCount(parseInt(e.target.value) || 1)}
+                min="1"
+                max="10"
+                className="w-full p-3 border border-gray-300 rounded-lg"
+              />
+            </div>
+
+            <button
+              onClick={handleGenerate}
+              disabled={isLoading || !selectedImage || !prompt.trim()}
+              className="w-full py-3 px-4 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+            >
+              {isLoading ? 'Generating...' : 'Generate Images'}
+            </button>
+
+            {error && (
+              <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg">
+                {error}
+              </div>
+            )}
+          </div>
+
+          {/* Results Section */}
+          <div className="space-y-6">
+            <h2 className="text-xl font-semibold">Results</h2>
+            
+            {isLoading && (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="mt-4 text-gray-600">Generating images...</p>
+              </div>
+            )}
+
+            {results && (
+              <div className="space-y-4">
+                <div className="p-4 bg-green-50 border border-green-200 text-green-700 rounded-lg">
+                  <p><strong>Success!</strong> Generated {results.successfulImages} of {results.totalGenerated} images</p>
+                  <p><strong>Original Prompt:</strong> {results.originalPrompt}</p>
+                </div>
+
+                {results.definitions && (
+                  <div>
+                    <h3 className="font-medium mb-2">Generated Definitions:</h3>
+                    <ul className="space-y-1">
+                      {results.definitions.map((def: string, index: number) => (
+                        <li key={index} className="p-2 bg-gray-50 rounded text-sm">
+                          {index + 1}. {def}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {results.images && (
+                  <div>
+                    <h3 className="font-medium mb-2">Generated Images:</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {results.images.map((image: any, index: number) => (
+                        <div key={index} className="space-y-2">
+                          {image.success && image.imageData ? (
+                            <img
+                              src={`data:image/png;base64,${image.imageData}`}
+                              alt={`Generated ${index + 1}`}
+                              className="w-full h-auto rounded-lg shadow-md"
+                            />
+                          ) : (
+                            <div className="w-full h-32 bg-red-50 border border-red-200 rounded-lg flex items-center justify-center text-red-600">
+                              Failed: {image.error || 'Unknown error'}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {!isLoading && !results && (
+              <div className="text-center py-8 text-gray-500">
+                Upload an image and enter a prompt to get started
+              </div>
+            )}
+          </div>
         </div>
       </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
     </div>
   );
 }
