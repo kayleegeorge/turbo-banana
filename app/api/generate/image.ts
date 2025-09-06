@@ -4,7 +4,8 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 export interface ImageGenerationRequest {
   prompt: string;
-  imageData: string; // base64 encoded image
+  imageData?: string; // base64 encoded image (for single image)
+  images?: Array<{ data: string; mimeType: string }>; // for multiple images
   mimeType?: string;
 }
 
@@ -17,23 +18,37 @@ export interface ImageGenerationResult {
 }
 
 /**
- * Generate a single image based on prompt and input image
+ * Generate a single image based on prompt and input image(s)
  */
 export async function generateImage({
   prompt,
   imageData,
+  images,
   mimeType = "image/png"
 }: ImageGenerationRequest): Promise<ImageGenerationResult> {
   try {
-    const requestContent = [
-      { text: prompt },
-      {
+    const requestContent: any[] = [{ text: prompt }];
+
+    // Handle multiple images (preferred method)
+    if (images && images.length > 0) {
+      for (const image of images) {
+        requestContent.push({
+          inlineData: {
+            mimeType: image.mimeType,
+            data: image.data,
+          },
+        });
+      }
+    } 
+    // Fallback to single image for backwards compatibility
+    else if (imageData) {
+      requestContent.push({
         inlineData: {
           mimeType,
           data: imageData,
         },
-      },
-    ];
+      });
+    }
 
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash-image-preview",
@@ -80,7 +95,7 @@ export async function generateImage({
  */
 export async function generateImagesBatch(
   requests: ImageGenerationRequest[],
-  maxConcurrency: number = 3
+  maxConcurrency: number = 100
 ): Promise<ImageGenerationResult[]> {
   const results: ImageGenerationResult[] = [];
   

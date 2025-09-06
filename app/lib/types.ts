@@ -20,4 +20,5 @@ export type Set = {
 export type Image = {
     id: string;
     setId: string;
+    definition?: string;
 }

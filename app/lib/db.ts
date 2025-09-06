@@ -6,8 +6,13 @@ import type { Project, ProjectAttachment, Set, Image } from "./types";
 // --- IMAGE STORAGE ---
 
 // Image is base64 encoded
-export async function uploadImage(key: string, image: string) {
-  const { url } = await put(key, image, { access: 'public' });
+export async function uploadImage(key: string, imageBase64: string) {
+  // Convert base64 to buffer for blob storage
+  const buffer = Buffer.from(imageBase64, 'base64');
+  const { url } = await put(key, buffer, { 
+    access: 'public',
+    contentType: 'image/png'
+  });
   return url;
 }
 
@@ -89,6 +94,7 @@ export async function getImagesInSet(setId: string): Promise<Image[]> {
     return images.map((image: any) => ({
         id: image.id,
         setId: image.set_id,
+        definition: image.definition,
     }));
 }
 
@@ -102,4 +108,53 @@ export async function deleteSet(id: string) {
 
 export async function deleteImage(id: string) {
     await sql`DELETE FROM images WHERE id = ${id}`;
+}
+
+// Save a generated image to blob store and database
+export async function saveGeneratedImage(
+    imageId: string,
+    setId: string,
+    imageData: string,
+    definition?: string
+): Promise<string> {
+    // Upload to blob store
+    const blobKey = `${setId}/${imageId}.png`;
+    const imageUrl = await uploadImage(blobKey, imageData);
+    
+    // Save to database with definition
+    await sql`INSERT INTO images (id, set_id, definition) VALUES (${imageId}, ${setId}, ${definition}) ON CONFLICT (id) DO UPDATE SET definition = ${definition}`;
+    
+    return imageUrl;
+}
+
+// Batch save multiple generated images
+export async function saveGeneratedImages(
+    images: Array<{
+        id: string;
+        imageData: string;
+        definition?: string;
+    }>,
+    setId: string
+): Promise<Array<{ id: string; url: string; success: boolean; error?: string }>> {
+    const results = [];
+    
+    for (const image of images) {
+        try {
+            const url = await saveGeneratedImage(image.id, setId, image.imageData, image.definition);
+            results.push({
+                id: image.id,
+                url,
+                success: true
+            });
+        } catch (error) {
+            results.push({
+                id: image.id,
+                url: '',
+                success: false,
+                error: error instanceof Error ? error.message : 'Unknown error'
+            });
+        }
+    }
+    
+    return results;
 }

@@ -1,8 +1,22 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { RotateCcw, Loader2 } from 'lucide-react';
+
+// Import preset configurations
+const PRESETS = {
+  font: {
+    name: 'font',
+    prompt: 'letters of the alphabet',
+    count: 26,
+  },
+  gameAssets: {
+    name: 'gameAssets',
+    prompt: 'game assets',
+    count: 10,
+  }
+};
 
 // Sample data - in a real app, this would come from an API
 const sampleProjects = [
@@ -56,92 +70,75 @@ const sampleProjects = [
   }
 ];
 
-const sampleSets = [
-  {
-    id: 1,
-    name: 'Alphabet',
-    description: 'Complete set of authentication components and logic',
-    itemCount: 12,
-    createdAt: '2 days ago',
-    lastModified: '5 hours ago',
-    type: 'Components'
-  },
-  {
-    id: 2,
-    name: 'Dashboard Widgets',
-    description: 'Collection of reusable dashboard widgets and charts',
-    itemCount: 8,
-    createdAt: '1 week ago',
-    lastModified: '2 days ago',
-    type: 'UI Components'
-  },
-  {
-    id: 3,
-    name: 'API Endpoints',
-    description: 'REST API endpoints for user management',
-    itemCount: 15,
-    createdAt: '3 days ago',
-    lastModified: '1 day ago',
-    type: 'Backend'
-  },
-  {
-    id: 4,
-    name: 'Database Models',
-    description: 'Data models and schema definitions',
-    itemCount: 6,
-    createdAt: '5 days ago',
-    lastModified: '3 days ago',
-    type: 'Database'
-  },
-  {
-    id: 5,
-    name: 'Test Suites',
-    description: 'Comprehensive test cases for all components',
-    itemCount: 24,
-    createdAt: '1 week ago',
-    lastModified: '4 hours ago',
-    type: 'Testing'
-  },
-  {
-    id: 6,
-    name: 'Utility Functions',
-    description: 'Shared utility functions and helpers',
-    itemCount: 9,
-    createdAt: '4 days ago',
-    lastModified: '6 hours ago',
-    type: 'Utils'
-  }
-];
 
 interface PageProps {
-  params: {
+  params: Promise<{
     id: string;
     setId: string;
-  };
+  }>;
+}
+
+interface GeneratedImage {
+  id: string;
+  imageData?: string; // Base64 data for immediate display
+  imageUrl?: string;  // Saved URL from blob store
+  definition: string;
+  success: boolean;
+  error?: string;
 }
 
 export default function SetPage({ params }: PageProps) {
   const router = useRouter();
+  const resolvedParams = use(params);
   const [isGenerating, setIsGenerating] = useState(false);
   const [setPrompt, setSetPrompt] = useState('');
+  const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
   const [isPromptSaving, setIsPromptSaving] = useState(false);
   const [setPromptImages, setSetPromptImages] = useState<File[]>([]);
+  const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
+  const [generationError, setGenerationError] = useState<string | null>(null);
+  const [isLoadingImages, setIsLoadingImages] = useState(true);
   
-  // Find the project and set by ID - in a real app, this would be API calls
-  const project = sampleProjects.find(p => p.id === parseInt(params.id));
-  const set = sampleSets.find(s => s.id === parseInt(params.setId));
+  // Find the project - in a real app, this would be API calls
+  const project = sampleProjects.find(p => p.id === parseInt(resolvedParams.id));
 
-  // If project or set not found, show error
-  if (!project || !set) {
+  // Load existing images on page load
+  useEffect(() => {
+    const loadExistingImages = async () => {
+      try {
+        const response = await fetch(`/api/projects/${resolvedParams.id}/sets/${resolvedParams.setId}`);
+        const result = await response.json();
+
+        if (result.success && result.set.images.length > 0) {
+          const loadedImages: GeneratedImage[] = result.set.images.map((img: any) => ({
+            id: img.id,
+            imageUrl: img.url,
+            definition: img.definition || `Generated image`,
+            success: true,
+          }));
+          setGeneratedImages(loadedImages);
+        }
+      } catch (error) {
+        console.error('Failed to load existing images:', error);
+      } finally {
+        setIsLoadingImages(false);
+      }
+    };
+
+    loadExistingImages();
+  }, [resolvedParams.id, resolvedParams.setId]);
+
+  // If project not found, show error
+  if (!project) {
     return (
       <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4">Set Not Found</h1>
+          <h1 className="text-2xl font-bold mb-4">Project Not Found</h1>
           <button
-            onClick={() => router.push(`/project/${params.id}`)}
+            onClick={() => router.push(`/`)}
             className="px-4 py-2 bg-black hover:bg-gray-800 text-white rounded-lg transition-colors"
           >
-            Back to Project
+            Back to Projects
           </button>
         </div>
       </div>
@@ -150,36 +147,82 @@ export default function SetPage({ params }: PageProps) {
 
   const handleGenerate = async () => {
     setIsGenerating(true);
+    setGenerationError(null);
     
-    // TODO: Implement actual generation API call
-    // Simulate API call delay
-    setTimeout(() => {
+    try {
+      // Check if we have a style image and prompt
+      if (!setPromptImages.length || !setPrompt) {
+        setGenerationError('Please add a style image and enter a prompt before generating.');
+        setIsGenerating(false);
+        return;
+      }
+
+      // Convert all uploaded images to base64
+      const styleImagesPromises = setPromptImages.map(file => {
+        return new Promise<{ data: string; mimeType: string }>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            const result = reader.result as string;
+            const base64Data = result.split(',')[1]; // Remove data:image/xxx;base64, prefix
+            resolve({
+              data: base64Data,
+              mimeType: file.type
+            });
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+      });
+
+      const styleImages = await Promise.all(styleImagesPromises);
+
+      // Get preset config for count and preset info
+      const itemCount = selectedPreset ? PRESETS[selectedPreset as keyof typeof PRESETS]?.count || 12 : 12;
+      
+      // Call the generate API with asset generation flow
+      const response = await fetch('/api/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          styleImages: styleImages,
+          prompt: setPrompt,
+          count: itemCount,
+          preset: selectedPreset,
+          setId: resolvedParams.setId // Include setId to save images automatically
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success && result.images) {
+        // Process the generated images with hybrid approach
+        const processedImages: GeneratedImage[] = result.images.map((img: any, index: number) => {
+          const savedImage = result.savedImages?.[index];
+          return {
+            id: savedImage?.id || `image-${Date.now()}-${index}`,
+            imageData: img.imageData || '', // Immediate display
+            imageUrl: savedImage?.url || '', // Saved URL (may be empty if save failed)
+            definition: result.definitions[index] || `Generated image ${index + 1}`,
+            success: img.success,
+            error: img.error
+          };
+        });
+
+        setGeneratedImages(processedImages);
+      } else {
+        setGenerationError(result.error || 'Failed to generate images. Please try again.');
+      }
+    } catch (error) {
+      setGenerationError(error instanceof Error ? error.message : 'An unexpected error occurred. Please try again.');
+    } finally {
       setIsGenerating(false);
-      console.log('Generation completed');
-    }, 2000);
+    }
   };
 
   const handleSavePrompt = async () => {
     setIsPromptSaving(true);
-    
-    // TODO: Implement API call to save set prompt and images
-    // Example API call:
-    // try {
-    //   const formData = new FormData();
-    //   formData.append('prompt', setPrompt);
-    //   setPromptImages.forEach((image, index) => {
-    //     formData.append(`image_${index}`, image);
-    //   });
-    //   await fetch(`/api/projects/${params.id}/sets/${params.setId}/prompt`, {
-    //     method: 'PUT',
-    //     body: formData
-    //   });
-    // } catch (error) {
-    //   console.error('Failed to save set prompt:', error);
-    // }
-    
-    console.log('Saving set prompt:', setPrompt);
-    console.log('Saving set prompt images:', setPromptImages);
     setTimeout(() => setIsPromptSaving(false), 1000);
   };
 
@@ -211,8 +254,9 @@ export default function SetPage({ params }: PageProps) {
     }
   };
 
-  // Generate empty cards for the grid
-  const emptyCards = Array.from({ length: 12 }, (_, index) => index);
+  // Generate empty cards for the grid based on preset or default
+  const itemCount = selectedPreset ? PRESETS[selectedPreset as keyof typeof PRESETS]?.count || 12 : 12;
+  const emptyCards = Array.from({ length: itemCount }, (_, index) => index);
 
   return (
     <div className="min-h-screen bg-background text-foreground flex">
@@ -221,7 +265,29 @@ export default function SetPage({ params }: PageProps) {
         {/* Header */}
         <div className="p-6">
           <div className="text-5xl tracking-tighter text-white">
-            {project.title} / {set.name}
+            {project.title} / Set {resolvedParams.setId}
+          </div>
+        </div>
+
+        {/* Preset Tabs Section */}
+        <div className="px-6 mb-4">
+          <div className="flex gap-1">
+            {Object.entries(PRESETS).map(([key, preset]) => (
+              <button
+                key={key}
+                onClick={() => {
+                  setSelectedPreset(key);
+                  setSetPrompt(preset.prompt);
+                }}
+                className={`px-4 py-2 text-sm font-medium transition-colors rounded-t-lg ${
+                  selectedPreset === key
+                    ? 'bg-white text-black'
+                    : 'bg-gray-700 text-white hover:bg-gray-600'
+                }`}
+              >
+                {preset.name} ({preset.count})
+              </button>
+            ))}
           </div>
         </div>
 
@@ -341,6 +407,18 @@ export default function SetPage({ params }: PageProps) {
             </div>
           </div>
 
+          {/* Error Message */}
+          {generationError && (
+            <div className="mb-4 p-3 bg-red-900/20 border border-red-500/30 rounded-lg">
+              <div className="flex items-start gap-3">
+                <svg className="w-5 h-5 text-red-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.464 0L4.35 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+                <p className="text-red-400 text-sm">{generationError}</p>
+              </div>
+            </div>
+          )}
+
           {/* Generate Button */}
           <button
             onClick={handleGenerate}
@@ -380,67 +458,109 @@ export default function SetPage({ params }: PageProps) {
 
         {/* Grid of Items - 4 per row */}
         <div className="grid grid-cols-4 gap-4">
-          {emptyCards.map((index) => (
-            <div
-              key={index}
-              className="aspect-square rounded-lg relative overflow-hidden cursor-pointer group"
-              style={{
-                backgroundImage: `url(/labubu-a.png)`,
-                backgroundSize: 'contain',
-                backgroundPosition: 'center',
-                backgroundRepeat: 'no-repeat',
-                backgroundColor: '#1D1D1D'
-              }}
-            >
-              {/* Label in top left */}
-              <div className="absolute top-3 left-3">
-                <span className="font-['Helvetica'] text-xs text-white uppercase tracking-tight">
-                  ITEM {String(index + 1).padStart(2, '0')}
-                </span>
-              </div>
-              
-              {/* Retry button in bottom right of each item */}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleGenerate();
+          {emptyCards.map((index) => {
+            const generatedImage = generatedImages[index];
+            const hasImage = generatedImage && generatedImage.success;
+            
+            // Prefer saved URL, fallback to base64 data, then default placeholder
+            let imageUrl = '/labubu-a.png';
+            if (hasImage) {
+              if (generatedImage.imageUrl) {
+                imageUrl = generatedImage.imageUrl;
+              } else if (generatedImage.imageData) {
+                imageUrl = `data:image/png;base64,${generatedImage.imageData}`;
+              }
+            }
+            
+            return (
+              <div
+                key={index}
+                className="aspect-square rounded-lg relative overflow-hidden cursor-pointer group"
+                style={{
+                  backgroundImage: `url(${imageUrl})`,
+                  backgroundSize: 'contain',
+                  backgroundPosition: 'center',
+                  backgroundRepeat: 'no-repeat',
+                  backgroundColor: '#1D1D1D'
                 }}
-                disabled={isGenerating}
-                className="absolute bottom-3 right-3 w-8 h-8 bg-white hover:bg-gray-100 disabled:bg-gray-300 disabled:cursor-not-allowed text-black rounded-full flex items-center justify-center transition-colors shadow-lg"
-                title={`Retry Item ${String(index + 1).padStart(2, '0')}`}
+                title={generatedImage?.definition}
               >
-                {isGenerating ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <RotateCcw className="w-4 h-4" />
+                {/* Label in top left */}
+                <div className="absolute top-3 left-3">
+                  <span className="font-['Helvetica'] text-xs text-white uppercase tracking-tight">
+                    ITEM {String(index + 1).padStart(2, '0')}
+                  </span>
+                </div>
+                
+                {/* Error indicator if generation failed */}
+                {generatedImage && !generatedImage.success && (
+                  <div className="absolute top-3 right-3">
+                    <div className="w-6 h-6 bg-red-500 rounded-full flex items-center justify-center" title={generatedImage.error}>
+                      <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </div>
+                  </div>
                 )}
-              </button>
-            </div>
-          ))}
+                
+                {/* Retry button in bottom right of each item */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleGenerate();
+                  }}
+                  disabled={isGenerating}
+                  className="absolute bottom-3 right-3 w-8 h-8 bg-white hover:bg-gray-100 disabled:bg-gray-300 disabled:cursor-not-allowed text-black rounded-full flex items-center justify-center transition-colors shadow-lg"
+                  title={`Retry Item ${String(index + 1).padStart(2, '0')}`}
+                >
+                  {isGenerating ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <RotateCcw className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
+            );
+          })}
         </div>
 
-        {/* Empty State Message */}
-        <div className="text-center py-12 mt-8">
-          <svg
-            className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={1}
-              d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
-            />
-          </svg>
-          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-            No items generated yet
-          </h3>
-          <p className="text-gray-500 dark:text-gray-400 mb-4">
-            Use the generate button in the sidebar to create new items for this set.
-          </p>
-        </div>
+        {/* Loading State for initial image load */}
+        {isLoadingImages && (
+          <div className="text-center py-12 mt-8">
+            <Loader2 className="w-16 h-16 text-gray-300 mx-auto mb-4 animate-spin" />
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+              Loading Images...
+            </h3>
+            <p className="text-gray-500 dark:text-gray-400 mb-4">
+              Checking for existing images in this set.
+            </p>
+          </div>
+        )}
+
+        {/* Empty State Message - only show if no images have been generated */}
+        {generatedImages.length === 0 && !isGenerating && !isLoadingImages && (
+          <div className="text-center py-12 mt-8">
+            <svg
+              className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1}
+                d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+              />
+            </svg>
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+              No items generated yet
+            </h3>
+            <p className="text-gray-500 dark:text-gray-400 mb-4">
+              Add a style image and prompt in the sidebar, then click Generate Set to create new items.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
