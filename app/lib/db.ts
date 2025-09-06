@@ -61,7 +61,7 @@ export async function saveGeneratedImages(images: Array<{id: string, imageData: 
             const imageUrl = await uploadImage(image.id, imageBuffer);
             
             // Save image record to database
-            await sql`INSERT INTO images (id, set_id, definition) VALUES (${image.id}, ${setId}, ${image.definition})`;
+            await sql`INSERT INTO images (id, set_id) VALUES (${image.id}, ${setId})`;
             
             savedImages.push({
                 id: image.id,
@@ -146,6 +146,11 @@ export async function getImagesInSet(setId: string): Promise<Image[]> {
         setId: image.set_id,
         definition: image.definition,
     }));
+}
+
+export async function getProjectIdFromSetId(setId: string): Promise<string | null> {
+    const result = await sql`SELECT project_id FROM sets WHERE id = ${setId} LIMIT 1`;
+    return result.length > 0 ? result[0].project_id : null;
 }
 
 export async function deleteProject(id: string) {

@@ -451,7 +451,7 @@ export default function SetPage({ params }: PageProps) {
               No items generated yet
             </h3>
             <p className="text-gray-500 dark:text-gray-400 mb-4">
-              Add a style image and prompt in the sidebar, then click Generate Set to create new items.
+              Add a prompt in the sidebar, then click Generate Set to create new items.
             </p>
           </div>
         )}

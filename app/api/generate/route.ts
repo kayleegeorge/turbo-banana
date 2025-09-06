@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateImage, generateImagesBatch, ImageGenerationRequest } from './image';
 import { generateDefinitions } from './definitions';
-import { saveGeneratedImages } from '@/app/lib/db';
+import { saveGeneratedImages, getProject, getProjectIdFromSetId } from '@/app/lib/db';
 
 export async function POST(request: NextRequest) {
   try {
@@ -9,9 +9,77 @@ export async function POST(request: NextRequest) {
     
     // Handle asset generation flow: styleImages + prompt -> definitions -> multiple images
     if (body.styleImages && body.prompt && (body.count || body.preset)) {
+      let finalPrompt = body.prompt;
+      let finalStyleImages = body.styleImages;
+
+      // If setId is provided, get project data and combine prompt/images
+      if (body.setId) {
+        try {
+          const projectId = await getProjectIdFromSetId(body.setId);
+          if (projectId) {
+            const project = await getProject(projectId);
+            
+            // Combine project prompt with the provided prompt
+            if (project.prompt) {
+              finalPrompt = `${project.prompt}. ${body.prompt}`;
+            }
+            
+            // Add project attachment images to style images
+            if (project.promptAttachments && project.promptAttachments.length > 0) {
+              for (const attachment of project.promptAttachments) {
+                try {
+                  // Convert attachment URL to base64
+                  const imageResponse = await fetch(attachment.url);
+                  const imageBlob = await imageResponse.blob();
+                  const imageBuffer = await imageBlob.arrayBuffer();
+                  const uint8Array = new Uint8Array(imageBuffer);
+                  
+                  // Convert to base64 in chunks to avoid stack overflow
+                  let binaryString = '';
+                  const chunkSize = 8192;
+                  for (let i = 0; i < uint8Array.length; i += chunkSize) {
+                    const chunk = uint8Array.slice(i, i + chunkSize);
+                    binaryString += String.fromCharCode.apply(null, Array.from(chunk));
+                  }
+                  const base64Data = btoa(binaryString);
+                  
+                  // Determine proper MIME type
+                  let mimeType = imageBlob.type;
+                  if (!mimeType || mimeType === 'application/octet-stream') {
+                    // Detect MIME type from URL extension or default to PNG
+                    const url = attachment.url.toLowerCase();
+                    if (url.includes('.jpg') || url.includes('.jpeg')) {
+                      mimeType = 'image/jpeg';
+                    } else if (url.includes('.png')) {
+                      mimeType = 'image/png';
+                    } else if (url.includes('.webp')) {
+                      mimeType = 'image/webp';
+                    } else if (url.includes('.gif')) {
+                      mimeType = 'image/gif';
+                    } else {
+                      mimeType = 'image/png'; // Default fallback
+                    }
+                  }
+                  
+                  finalStyleImages.push({
+                    data: base64Data,
+                    mimeType: mimeType
+                  });
+                } catch (error) {
+                  console.error('Failed to load attachment image:', error);
+                  // Continue without this image if loading fails
+                }
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Failed to load project data:', error);
+          // Continue with original prompt/images if project loading fails
+        }
+      }
+
       const definitionsResult = await generateDefinitions({
-        prompt: body.prompt,
-        count: body.count || 12, // Default count if not specified
+        prompt: finalPrompt,
       });
       console.log('definitionsResult', definitionsResult);
 
@@ -24,7 +92,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Prepare images for generation
-      const imagesToUse: Array<{ data: string; mimeType: string }> = body.styleImages.map((img: any) => ({
+      const imagesToUse: Array<{ data: string; mimeType: string }> = finalStyleImages.map((img: any) => ({
         data: img.data,
         mimeType: img.mimeType
       }));
@@ -40,22 +108,22 @@ export async function POST(request: NextRequest) {
 
       // If setId is provided, save successful images to database and blob store
       let savedResults = null;
-      if (body.setId && imageResults.some(r => r.success)) {
-        const imagesToSave = imageResults
-          .map((result, index) => ({
-            id: `${body.setId}-${Date.now()}-${index}`,
-            imageData: result.imageData || '',
-            definition: definitionsResult.definitions![index]
-          }))
-          .filter(img => img.imageData); // Only save images that have data
+      // if (body.setId && imageResults.some(r => r.success)) {
+      //   const imagesToSave = imageResults
+      //     .map((result, index) => ({
+      //       id: `${body.setId}-${Date.now()}-${index}`,
+      //       imageData: result.imageData || '',
+      //       definition: definitionsResult.definitions![index]
+      //     }))
+      //     .filter(img => img.imageData); // Only save images that have data
 
-        try {
-          savedResults = await saveGeneratedImages(imagesToSave, body.setId);
-        } catch (error) {
-          console.error('Failed to save images:', error);
-          // Continue without saving - return generation results anyway
-        }
-      }
+      //   try {
+      //     savedResults = await saveGeneratedImages(imagesToSave, body.setId);
+      //   } catch (error) {
+      //     console.error('Failed to save images:', error);
+      //     // Continue without saving - return generation results anyway
+      //   }
+      // }
 
       return NextResponse.json({
         success: true,

@@ -18,7 +18,7 @@ export const PRESETS: Record<string, PresetConfig> = {
 
 export interface DefinitionGenerationRequest {
   prompt: string;
-  count: number;
+  count?: number;
   preset?: string;
 }
 
@@ -40,7 +40,11 @@ export async function generateDefinitions({
   count,
 }: DefinitionGenerationRequest): Promise<DefinitionGenerationResult> {
   try {
-      let definitionPrompt = `Generate ${count} different, specific, and creative descriptions based on this request: "${prompt}"
+      let definitionPrompt = count 
+        ? `Generate ${count} different, specific, and creative descriptions based on this request: "${prompt}"`
+        : `Generate different, specific, and creative descriptions based on this request: "${prompt}". Decide on an appropriate number of variations that would work well for this request.`;
+
+      definitionPrompt += `
 
 Special handling for alphabet requests:
 - If the request is about "alphabet", "letters", or similar, generate exactly 26 descriptions in the format: "the letter A", "the letter B", "the letter C", etc.
@@ -77,11 +81,15 @@ A bushy tomato plant with bright red fruits hanging from green stems.`;
     }
 
     // Parse the response into individual definitions
-    const definitions = textResponse
+    let definitions = textResponse
       .split('\n')
       .map(line => line.trim())
-      .filter(line => line.length > 0 && !line.match(/^\d+\.|^-|^\*/)) // Remove numbered/bulleted items
-      .slice(0, count); 
+      .filter(line => line.length > 0 && !line.match(/^\d+\.|^-|^\*/)); // Remove numbered/bulleted items
+    
+    // Only slice if count is provided
+    if (count) {
+      definitions = definitions.slice(0, count);
+    } 
 
     if (definitions.length === 0) {
       return {
