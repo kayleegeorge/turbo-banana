@@ -1,103 +1,197 @@
-import Image from "next/image";
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+
+// Sample project data
+const sampleProjects = [
+  {
+    id: 1,
+    title: 'THE MONSTERS',
+    description: 'A modern e-commerce solution built with Next.js and TypeScript',
+    status: 'Active',
+    lastUpdated: '2 days ago',
+    tags: ['Next.js', 'TypeScript', 'Tailwind CSS']
+  },
+  {
+    id: 2,
+    title: 'TERRARIA',
+    description: 'Collaborative task management tool with real-time updates',
+    status: 'In Progress',
+    lastUpdated: '5 hours ago',
+    tags: ['React', 'Node.js', 'Socket.io']
+  },
+  {
+    id: 3,
+    title: 'Analytics Dashboard',
+    description: 'Data visualization dashboard for business insights',
+    status: 'Completed',
+    lastUpdated: '1 week ago',
+    tags: ['React', 'D3.js', 'Python']
+  },
+  {
+    id: 4,
+    title: 'Mobile Banking App',
+    description: 'Secure mobile banking application with biometric authentication',
+    status: 'Active',
+    lastUpdated: '3 days ago',
+    tags: ['React Native', 'Node.js', 'MongoDB']
+  },
+  {
+    id: 5,
+    title: 'AI Chat Assistant',
+    description: 'Intelligent chat assistant powered by machine learning',
+    status: 'In Progress',
+    lastUpdated: '1 day ago',
+    tags: ['Python', 'TensorFlow', 'FastAPI']
+  },
+  {
+    id: 6,
+    title: 'Video Streaming Platform',
+    description: 'Netflix-like streaming platform with content management',
+    status: 'Planning',
+    lastUpdated: '4 days ago',
+    tags: ['React', 'AWS', 'CDN']
+  }
+];
 
 export default function Home() {
-  return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const router = useRouter();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [projectTitle, setProjectTitle] = useState('');
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  const handleCreateProject = () => {
+    if (projectTitle.trim()) {
+      // TODO: Add API call to create project
+      console.log('Creating project:', projectTitle);
+      setIsModalOpen(false);
+      setProjectTitle('');
+      // For now, just close the modal
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-background text-foreground">
+      <div className="px-6 py-8">
+        {/* Header Section */}
+        <div className="mb-8">
+          <h1 className="text-5xl mb-2 tracking-tighter">Projects</h1>
+          <p className="text-gray-600 dark:text-gray-400 tracking-tighter text-lg">Manage and track your projects</p>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+
+
+        {/* Projects Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          {/* First 2 Project Cards */}
+          {sampleProjects.slice(0, 2).map((project, index) => (
+            <div
+              key={project.id}
+              onClick={() => router.push(`/project/${project.id}`)}
+              className="rounded-lg hover:shadow-lg transition-shadow cursor-pointer relative overflow-hidden"
+              style={{ 
+                aspectRatio: '1.618 / 1', 
+                backgroundColor: '#1D1D1D',
+                backgroundImage: `url(/${index === 0 ? 'labubu-a.png' : 'isometric-house.png'})`,
+                backgroundSize: index === 0 ? '250px' : '200px',
+                backgroundPosition: 'center',
+                backgroundRepeat: 'no-repeat'
+              }}
+            >
+              {/* Content Container */}
+              <div className="p-6 h-full flex flex-col justify-between">
+                {/* Project Title */}
+                <div className="font-['Helvetica'] text-sm font-medium text-white uppercase tracking-tight line-clamp-3">
+                  PROJECT {String(index + 1).padStart(2, '0')}: {project.title.toUpperCase()}
+                </div>
+                
+                {/* Updated Timestamp */}
+                <div className="font-['IBM_Plex_Mono'] text-xs text-gray-400 uppercase tracking-wider">
+                  UPDATED {project.lastUpdated.toUpperCase()}
+                </div>
+              </div>
+            </div>
+          ))}
+          
+          {/* Create New Project Card */}
+          <div
+            onClick={() => setIsModalOpen(true)}
+            className="rounded-lg hover:shadow-lg transition-shadow cursor-pointer relative overflow-hidden flex items-center justify-center"
+            style={{ aspectRatio: '1.618 / 1', backgroundColor: '#1D1D1D' }}
+          >
+            {/* White Circle with Plus */}
+            <div className="w-24 h-24 bg-white dark:bg-gray-100 rounded-full flex items-center justify-center shadow-lg">
+              <svg 
+                className="w-8 h-8 text-gray-600 dark:text-gray-700" 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round" 
+                  strokeWidth={2} 
+                  d="M12 4v16m8-8H4" 
+                />
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        {/* Create Project Modal */}
+        {isModalOpen && (
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50"
+            onClick={() => {
+              setIsModalOpen(false);
+              setProjectTitle('');
+            }}
+          >
+              <div 
+                className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-lg p-6 w-full max-w-md mx-4 shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+              <h2 className="text-xl text-gray-900 dark:text-white mb-4">
+                Create Project
+              </h2>
+              
+              <div className="mb-4">
+                <label htmlFor="project-title" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  PROJECT TITLE
+                </label>
+                <input
+                  id="project-title"
+                  type="text"
+                  value={projectTitle}
+                  onChange={(e) => setProjectTitle(e.target.value)}
+                  placeholder="Enter project title..."
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  autoFocus
+                />
+              </div>
+              
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => {
+                    setIsModalOpen(false);
+                    setProjectTitle('');
+                  }}
+                  className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleCreateProject}
+                  disabled={!projectTitle.trim()}
+                  className="px-4 py-2 bg-white hover:bg-gray-100 disabled:bg-gray-400 disabled:cursor-not-allowed text-black disabled:text-white border border-gray-300 rounded-md transition-colors"
+                >
+                  Create Project
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+      </div>
     </div>
   );
 }
