@@ -283,7 +283,38 @@ export default function SetPage({ params }: PageProps) {
     }
   };
 
+  const handleDeleteImage = async (imageId: string, index: number) => {
+    try {
+      // Call API to delete the image from the database
+      const response = await fetch(`/api/projects/${resolvedParams.id}/sets/${resolvedParams.setId}/images/${imageId}`, {
+        method: 'DELETE',
+      });
 
+      if (response.ok) {
+        // Remove the image from local state
+        setGeneratedImages(prevImages => prevImages.filter(img => img.id !== imageId));
+        // Also remove from processed images
+        setProcessedImages(prevProcessed => {
+          const newProcessed = { ...prevProcessed };
+          delete newProcessed[imageId];
+          return newProcessed;
+        });
+        
+        // Show success toast
+        setToastMessage(`Item ${String(index + 1).padStart(2, '0')} deleted`);
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 3000);
+      } else {
+        throw new Error('Failed to delete image');
+      }
+    } catch (error) {
+      console.error('Error deleting image:', error);
+      // Show error toast
+      setToastMessage('Failed to delete item');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+    }
+  };
 
   // Generate cards based on the number of generated images, or default to 12 if no images
   const itemCount = generatedImages.length > 0 ? generatedImages.length : 12;
@@ -461,6 +492,22 @@ export default function SetPage({ params }: PageProps) {
                       </svg>
                     </div>
                   </div>
+                )}
+
+                {/* Delete button - always shown if there's an image */}
+                {hasImage && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteImage(generatedImage.id, index);
+                    }}
+                    className="absolute top-3 right-3 w-6 h-6 bg-black bg-opacity-70 hover:bg-opacity-90 text-white rounded-full flex items-center justify-center transition-all opacity-0 group-hover:opacity-100"
+                    title={`Delete Item ${String(index + 1).padStart(2, '0')}`}
+                  >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
                 )}
                 
                 {/* Retry button in bottom right of each item */}
