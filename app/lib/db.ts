@@ -42,7 +42,23 @@ export async function updateSet(set: Set) {
 }
 
 export async function saveImagesToSet(imageIds: string[], setId: string) {
-    await sql`INSERT INTO images (id, set_id) VALUES (${imageIds.map((id) => sql`(${id}, ${setId})`).join(',')})`;
+    for (const imageId of imageIds) {
+        await sql`INSERT INTO images (id, set_id) VALUES (${imageId}, ${setId})`;
+    }
+}
+
+export async function saveImageToSet(imageId: string, setId: string) {
+    await sql`INSERT INTO images (id, set_id) VALUES (${imageId}, ${setId})`;
+}
+
+export async function listProjects(): Promise<Project[]> {
+    const projects = await sql`SELECT * FROM projects`;
+    return projects.map((project: any) => ({
+        id: project.id,
+        name: project.name,
+        prompt: project.prompt,
+        coverImageId: project.cover_image_id,
+    }));
 }
 
 export async function getProject(id: string) {
@@ -66,4 +82,24 @@ export async function getProject(id: string) {
 export async function getProjectAttachment(id: string) {
     const projectAttachment = await sql`SELECT * FROM project_attachments WHERE id = ${id}`;
     return projectAttachment;
+}
+
+export async function getImagesInSet(setId: string): Promise<Image[]> {
+    const images = await sql`SELECT * FROM images WHERE set_id = ${setId}`;
+    return images.map((image: any) => ({
+        id: image.id,
+        setId: image.set_id,
+    }));
+}
+
+export async function deleteProject(id: string) {
+    await sql`DELETE FROM projects WHERE id = ${id}`;
+}
+
+export async function deleteSet(id: string) {
+    await sql`DELETE FROM sets WHERE id = ${id}`;
+}
+
+export async function deleteImage(id: string) {
+    await sql`DELETE FROM images WHERE id = ${id}`;
 }
