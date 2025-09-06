@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Project, Set } from '../../lib/types';
+import { removeBackground } from '../../lib/imageUtils';
 
 type ProjectAttachmentData = {
   url: string;
@@ -39,6 +40,7 @@ export default function ProjectPage({ params }: PageProps) {
   const [toastMessage, setToastMessage] = useState('');
   const [editingSet, setEditingSet] = useState<string | null>(null);
   const [editingSetName, setEditingSetName] = useState('');
+  const [processedSetImages, setProcessedSetImages] = useState<{[key: string]: string}>({});
 
   useEffect(() => {
     async function fetchProject() {
@@ -61,6 +63,25 @@ export default function ProjectPage({ params }: PageProps) {
         setProjectPrompt(projectData.prompt || '');
         setSavedPromptImageUrls(projectData.promptImageUrls || []);
         setSavedPromptAttachments(projectData.promptAttachments || []);
+        
+        // Process set images to remove backgrounds
+        if (projectData.sets) {
+          const setsWithImages = projectData.sets.filter((set: Set) => set.firstImageUrl);
+          if (setsWithImages.length > 0) {
+            const processedMap: {[key: string]: string} = {};
+            
+            for (const set of setsWithImages) {
+              try {
+                const processedImage = await removeBackground(set.firstImageUrl!, 'black', 30);
+                processedMap[set.id] = processedImage;
+              } catch (error) {
+                console.error(`Failed to process image for set ${set.id}:`, error);
+              }
+            }
+            
+            setProcessedSetImages(processedMap);
+          }
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Unknown error');
       } finally {
@@ -611,15 +632,21 @@ export default function ProjectPage({ params }: PageProps) {
                   className="rounded-lg hover:shadow-lg transition-shadow cursor-pointer relative overflow-hidden group"
                   style={{ 
                     aspectRatio: '1.618 / 1', 
-                    backgroundColor: '#1D1D1D',
-                    backgroundImage: `url(/${index === 1 ? 'isometric-house.png' : 'labubu-a.png'})`,
-                    backgroundSize: index === 1 ? '150px' : '180px',
-                    backgroundPosition: 'center',
-                    backgroundRepeat: 'no-repeat'
+                    backgroundColor: '#1D1D1D'
                   }}
                 >
+                  {/* Generated Image in Center */}
+                  {set.firstImageUrl && (
+                    <div className="absolute inset-0 flex items-center justify-center p-6">
+                      <img
+                        src={processedSetImages[set.id] || set.firstImageUrl}
+                        alt="Set preview"
+                        className="max-w-full max-h-full object-contain"
+                      />
+                    </div>
+                  )}
                   {/* Content Container */}
-                  <div className="p-4 h-full flex flex-col justify-between">
+                  <div className="p-4 h-full flex flex-col justify-between relative z-10">
                     {/* Set Title */}
                     {editingSet === set.id ? (
                       <div className="w-full" onClick={(e) => e.stopPropagation()}>

@@ -91,31 +91,75 @@ export async function generateImage({
 }
 
 /**
- * Batch generate multiple images concurrently
+ * Batch generate multiple images concurrently with retry logic
  */
 export async function generateImagesBatch(
   requests: ImageGenerationRequest[],
-  maxConcurrency: number = 100
+  maxConcurrency: number = 100,
+  maxRetries: number = 3,
+  retryDelay: number = 1000
 ): Promise<ImageGenerationResult[]> {
-  const results: ImageGenerationResult[] = [];
+  const results: ImageGenerationResult[] = new Array(requests.length);
+  let remainingRequests = requests.map((request, index) => ({ request, originalIndex: index }));
+  let retryCount = 0;
   
-  // Process requests in batches to avoid overwhelming the API
-  for (let i = 0; i < requests.length; i += maxConcurrency) {
-    const batch = requests.slice(i, i + maxConcurrency);
-    const batchPromises = batch.map(request => generateImage(request));
-    const batchResults = await Promise.allSettled(batchPromises);
+  while (remainingRequests.length > 0 && retryCount <= maxRetries) {
+    const currentBatchResults: { result: ImageGenerationResult; originalIndex: number }[] = [];
+    const failedRequests: { request: ImageGenerationRequest; originalIndex: number }[] = [];
     
-    // Handle both fulfilled and rejected promises
-    for (const result of batchResults) {
-      if (result.status === 'fulfilled') {
-        results.push(result.value);
-      } else {
-        results.push({
-          success: false,
-          error: `Batch processing error: ${result.reason}`,
-          originalPrompt: "Unknown",
-        });
+    // Process requests in batches to avoid overwhelming the API
+    for (let i = 0; i < remainingRequests.length; i += maxConcurrency) {
+      const batch = remainingRequests.slice(i, i + maxConcurrency);
+      const batchPromises = batch.map(({ request }) => generateImage(request));
+      const batchResults = await Promise.allSettled(batchPromises);
+      
+      // Handle both fulfilled and rejected promises
+      for (let j = 0; j < batchResults.length; j++) {
+        const result = batchResults[j];
+        const originalIndex = batch[j].originalIndex;
+        
+        if (result.status === 'fulfilled') {
+          const imageResult = result.value;
+          if (imageResult.success) {
+            // Success - store the result
+            currentBatchResults.push({ result: imageResult, originalIndex });
+          } else {
+            // Failed result from generateImage - add to retry queue
+            failedRequests.push({ request: batch[j].request, originalIndex });
+          }
+        } else {
+          // Promise rejection - add to retry queue
+          failedRequests.push({ request: batch[j].request, originalIndex });
+        }
       }
+    }
+    
+    // Store successful results in their original positions
+    for (const { result, originalIndex } of currentBatchResults) {
+      results[originalIndex] = result;
+    }
+    
+    // If this is the last retry attempt, mark remaining failed requests as failed
+    if (retryCount === maxRetries) {
+      for (const { request, originalIndex } of failedRequests) {
+        results[originalIndex] = {
+          success: false,
+          error: `Failed after ${maxRetries} retry attempts`,
+          originalPrompt: request.prompt,
+        };
+      }
+      break;
+    }
+    
+    // Prepare for next retry iteration
+    remainingRequests = failedRequests;
+    retryCount++;
+    
+    // Add exponential backoff delay before retrying (except on first attempt)
+    if (remainingRequests.length > 0 && retryCount > 0) {
+      const delay = retryDelay * Math.pow(2, retryCount - 1);
+      console.log(`Retrying ${remainingRequests.length} failed requests (attempt ${retryCount}/${maxRetries}) after ${delay}ms delay...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
     }
   }
   
