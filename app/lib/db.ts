@@ -5,14 +5,9 @@ import type { Project, ProjectAttachment, Set, Image } from "./types";
 
 // --- IMAGE STORAGE ---
 
-// Image is base64 encoded
-export async function uploadImage(key: string, imageBase64: string) {
-  // Convert base64 to buffer for blob storage
-  const buffer = Buffer.from(imageBase64, 'base64');
-  const { url } = await put(key, buffer, { 
-    access: 'public',
-    contentType: 'image/png'
-  });
+// Upload image to blob storage
+export async function uploadImage(key: string, image: string | Buffer | ArrayBuffer) {
+  const { url } = await put(key, image, { access: 'public' });
   return url;
 }
 
@@ -69,12 +64,34 @@ export async function listProjects(): Promise<Project[]> {
 export async function getProject(id: string) {
     const details = await sql`SELECT * FROM projects WHERE id = ${id} LIMIT 1`;
     const sets = await sql`SELECT * FROM sets WHERE project_id = ${id}`;
+    const attachments = await getProjectAttachments(id);
+    
+    // Get the URLs for the prompt images with their attachment IDs
+    const promptImageData = await Promise.all(
+        attachments.map(async (attachment) => {
+            // The blob key is: projectId/prompt/attachmentId
+            const blobKey = `${id}/prompt/${attachment.id}`;
+            console.log(`Looking for blob with key: ${blobKey}`);
+            // List blobs with this specific prefix
+            const images = await listImages(blobKey);
+            console.log(`Found ${images.length} images for key ${blobKey}:`, images);
+            return images.length > 0 ? {
+                url: images[0],
+                attachmentId: attachment.id
+            } : null;
+        })
+    );
+
+    const promptImageUrls = promptImageData.filter(Boolean).map(data => data!.url);
+    const promptAttachments = promptImageData.filter(Boolean);
 
     const project = {
         id: details[0].id,
         name: details[0].name,
         prompt: details[0].prompt,
         coverImageId: details[0].cover_image_id,
+        promptImageUrls: promptImageUrls,
+        promptAttachments: promptAttachments,
         sets: sets.map((set) => ({
             id: set.id,
             name: set.name,
@@ -87,6 +104,14 @@ export async function getProject(id: string) {
 export async function getProjectAttachment(id: string) {
     const projectAttachment = await sql`SELECT * FROM project_attachments WHERE id = ${id}`;
     return projectAttachment;
+}
+
+export async function getProjectAttachments(projectId: string): Promise<ProjectAttachment[]> {
+    const attachments = await sql`SELECT * FROM project_attachments WHERE project_id = ${projectId}`;
+    return attachments.map((attachment: any) => ({
+        id: attachment.id,
+        projectId: attachment.project_id,
+    }));
 }
 
 export async function getImagesInSet(setId: string): Promise<Image[]> {
@@ -110,6 +135,7 @@ export async function deleteImage(id: string) {
     await sql`DELETE FROM images WHERE id = ${id}`;
 }
 
+<<<<<<< HEAD
 // Save a generated image to blob store and database
 export async function saveGeneratedImage(
     imageId: string,
@@ -157,4 +183,12 @@ export async function saveGeneratedImages(
     }
     
     return results;
+=======
+export async function deleteProjectAttachments(projectId: string) {
+    await sql`DELETE FROM project_attachments WHERE project_id = ${projectId}`;
+}
+
+export async function deleteProjectAttachment(attachmentId: string) {
+    await sql`DELETE FROM project_attachments WHERE id = ${attachmentId}`;
+>>>>>>> j/api-home-project-integration
 }

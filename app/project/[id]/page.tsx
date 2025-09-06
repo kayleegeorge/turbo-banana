@@ -1,111 +1,23 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import type { Project, Set } from '../../lib/types';
 
-// Sample sets data for a project
-const sampleSets = [
-  {
-    id: 1,
-    name: 'Alphabet Letters',
-    description: 'Complete A-Z letter collection in various styles',
-    itemCount: 26,
-    createdAt: '2 days ago',
-    lastModified: '5 hours ago'
-  },
-  {
-    id: 2,
-    name: 'Modern Furniture',
-    description: 'Contemporary furniture pieces for home and office',
-    itemCount: 18,
-    createdAt: '1 week ago',
-    lastModified: '2 days ago'
-  },
-  {
-    id: 3,
-    name: 'Cozy Houses',
-    description: 'Residential homes in different architectural styles',
-    itemCount: 12,
-    createdAt: '3 days ago',
-    lastModified: '1 day ago'
-  },
-  {
-    id: 4,
-    name: 'Fashion Hats',
-    description: 'Stylish headwear collection for all seasons',
-    itemCount: 15,
-    createdAt: '5 days ago',
-    lastModified: '3 days ago'
-  },
-  {
-    id: 5,
-    name: 'Fun Stickers',
-    description: 'Colorful sticker pack with emojis and characters',
-    itemCount: 32,
-    createdAt: '1 week ago',
-    lastModified: '4 hours ago'
-  },
-  {
-    id: 6,
-    name: 'Kitchen Tools',
-    description: 'Essential cooking utensils and appliances',
-    itemCount: 14,
-    createdAt: '4 days ago',
-    lastModified: '6 hours ago'
-  }
-];
+type ProjectAttachmentData = {
+  url: string;
+  attachmentId: string;
+};
 
-// Sample project data - in a real app, this would come from an API or database
-const sampleProjects = [
-  {
-    id: 1,
-    title: 'The Monsters',
-    description: 'A modern e-commerce solution built with Next.js and TypeScript',
-    status: 'Active',
-    lastUpdated: '2 days ago',
-    tags: ['Next.js', 'TypeScript', 'Tailwind CSS']
-  },
-  {
-    id: 2,
-    title: 'Task Management App',
-    description: 'Collaborative task management tool with real-time updates',
-    status: 'In Progress',
-    lastUpdated: '5 hours ago',
-    tags: ['React', 'Node.js', 'Socket.io']
-  },
-  {
-    id: 3,
-    title: 'Analytics Dashboard',
-    description: 'Data visualization dashboard for business insights',
-    status: 'Completed',
-    lastUpdated: '1 week ago',
-    tags: ['React', 'D3.js', 'Python']
-  },
-  {
-    id: 4,
-    title: 'Mobile Banking App',
-    description: 'Secure mobile banking application with biometric authentication',
-    status: 'Active',
-    lastUpdated: '3 days ago',
-    tags: ['React Native', 'Node.js', 'MongoDB']
-  },
-  {
-    id: 5,
-    title: 'AI Chat Assistant',
-    description: 'Intelligent chat assistant powered by machine learning',
-    status: 'In Progress',
-    lastUpdated: '1 day ago',
-    tags: ['Python', 'TensorFlow', 'FastAPI']
-  },
-  {
-    id: 6,
-    title: 'Video Streaming Platform',
-    description: 'Netflix-like streaming platform with content management',
-    status: 'Planning',
-    lastUpdated: '4 days ago',
-    tags: ['React', 'AWS', 'CDN']
-  }
-];
+type ProjectWithSets = {
+  id: string;
+  name: string;
+  prompt: string | null;
+  coverImageId: string | null;
+  promptImageUrls: string[];
+  promptAttachments: ProjectAttachmentData[];
+  sets: Set[];
+};
 
 interface PageProps {
   params: {
@@ -115,21 +27,166 @@ interface PageProps {
 
 export default function ProjectPage({ params }: PageProps) {
   const router = useRouter();
-  const [masterPrompt, setMasterPrompt] = useState('');
+  const [projectPrompt, setProjectPrompt] = useState('');
   const [isPromptSaving, setIsPromptSaving] = useState(false);
   const [promptImages, setPromptImages] = useState<File[]>([]);
-  const [isSetModalOpen, setIsSetModalOpen] = useState(false);
-  const [newSetTitle, setNewSetTitle] = useState('');
+  const [savedPromptImageUrls, setSavedPromptImageUrls] = useState<string[]>([]);
+  const [savedPromptAttachments, setSavedPromptAttachments] = useState<ProjectAttachmentData[]>([]);
+  const [project, setProject] = useState<ProjectWithSets | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [editingSet, setEditingSet] = useState<string | null>(null);
+  const [editingSetName, setEditingSetName] = useState('');
 
-  // Find the project by ID - in a real app, this would be an API call
-  const project = sampleProjects.find(p => p.id === parseInt(params.id));
+  useEffect(() => {
+    async function fetchProject() {
+      try {
+        setLoading(true);
+        const response = await fetch(`http://localhost:3000/api/project/${params.id}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ id: params.id })
+        });
 
-  // If project not found, show error or redirect
-  if (!project) {
+        if (!response.ok) {
+          throw new Error('Failed to fetch project');
+        }
+
+        const projectData = await response.json();
+        setProject(projectData);
+        setProjectPrompt(projectData.prompt || '');
+        setSavedPromptImageUrls(projectData.promptImageUrls || []);
+        setSavedPromptAttachments(projectData.promptAttachments || []);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Unknown error');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchProject();
+  }, [params.id]);
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background text-foreground">
+        <div className="px-6 py-8">
+          {/* Main Content - Two Column Layout */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            {/* Left Column - Title and Project Prompt Skeleton */}
+            <div className="space-y-8">
+              {/* Project Title Skeleton */}
+              <div>
+                <div className="h-16 bg-gray-700 rounded w-3/4 animate-pulse"></div>
+              </div>
+              
+              {/* Project Prompt Skeleton */}
+              <div 
+                className="rounded-lg relative overflow-hidden animate-pulse" 
+                style={{ 
+                  aspectRatio: '1.618/1', 
+                  backgroundColor: '#1D1D1D' 
+                }}
+              >
+                {/* Content Container */}
+                <div className="p-6 h-full flex flex-col">
+                  {/* Label skeleton */}
+                  <div className="mb-4">
+                    <div className="h-4 bg-gray-600 rounded w-32"></div>
+                  </div>
+                  
+                  {/* Content area skeleton */}
+                  <div className="flex-1 flex flex-col pr-16">
+                    {/* Text lines */}
+                    <div className="space-y-3">
+                      <div className="h-3 bg-gray-600 rounded w-full"></div>
+                      <div className="h-3 bg-gray-600 rounded w-4/5"></div>
+                      <div className="h-3 bg-gray-600 rounded w-3/5"></div>
+                    </div>
+                  </div>
+                  
+                  {/* Save button skeleton */}
+                  <div className="absolute bottom-6 right-6 w-10 h-10 bg-gray-600 rounded-full animate-pulse"></div>
+                </div>
+              </div>
+            </div>
+
+            {/* Right Column - Sets Skeleton */}
+            <div>
+              {/* Sets Title Skeleton */}
+              <div className="mb-6">
+                <div className="h-16 bg-gray-700 rounded w-1/2 animate-pulse mb-8"></div>
+              </div>
+              
+              {/* Sets Grid Skeleton */}
+              <div className="grid grid-cols-2 gap-4">
+                {/* Set Card Skeleton */}
+                {[1].map((index) => (
+                  <div
+                    key={`set-skeleton-${index}`}
+                    className="rounded-lg relative overflow-hidden animate-pulse"
+                    style={{ 
+                      aspectRatio: '1.618 / 1', 
+                      backgroundColor: '#1D1D1D'
+                    }}
+                  >
+                    {/* Content Container */}
+                    <div className="p-4 h-full flex flex-col justify-between">
+                      {/* Set Title Skeleton */}
+                      <div className="space-y-2">
+                        <div className="h-6 bg-gray-600 rounded w-3/4"></div>
+                      </div>
+                      
+                      {/* Bottom info skeleton */}
+                      <div className="h-3 bg-gray-600 rounded w-1/2"></div>
+                    </div>
+                  </div>
+                ))}
+                
+                {/* Create New Set Card - Always visible */}
+                <div
+                  className="rounded-lg relative overflow-hidden flex items-center justify-center"
+                  style={{ aspectRatio: '1.618 / 1', backgroundColor: '#1D1D1D' }}
+                >
+                  {/* White Circle with Plus */}
+                  <div className="w-12 h-12 bg-white dark:bg-gray-100 rounded-full flex items-center justify-center shadow-lg">
+                    <svg 
+                      className="w-5 h-5 text-gray-600 dark:text-gray-700" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
+                      <path 
+                        strokeLinecap="round" 
+                        strokeLinejoin="round" 
+                        strokeWidth={2} 
+                        d="M12 4v16m8-8H4" 
+                      />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error || !project) {
     return (
       <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4">Project Not Found</h1>
+          <h1 className="text-2xl font-bold mb-4">
+            {error ? 'Error Loading Project' : 'Project Not Found'}
+          </h1>
+          {error && <p className="text-gray-500 mb-4">{error}</p>}
           <button
             onClick={() => router.push('/')}
             className="px-4 py-2 bg-black hover:bg-gray-800 text-white rounded-lg transition-colors"
@@ -146,25 +203,52 @@ export default function ProjectPage({ params }: PageProps) {
   const handleSavePrompt = async () => {
     setIsPromptSaving(true);
     
-    // TODO: Implement API call to save master prompt and images
-    // Example API call:
-    // try {
-    //   const formData = new FormData();
-    //   formData.append('prompt', masterPrompt);
-    //   promptImages.forEach((image, index) => {
-    //     formData.append(`image_${index}`, image);
-    //   });
-    //   await fetch(`/api/projects/${params.id}/prompt`, {
-    //     method: 'PUT',
-    //     body: formData
-    //   });
-    // } catch (error) {
-    //   console.error('Failed to save prompt:', error);
-    // }
-    
-    console.log('Saving master prompt:', masterPrompt);
-    console.log('Saving prompt images:', promptImages);
-    setTimeout(() => setIsPromptSaving(false), 1000);
+    try {
+      const formData = new FormData();
+      formData.append('prompt', projectPrompt);
+      
+      // Add new images to FormData
+      promptImages.forEach((image, index) => {
+        formData.append(`image_${index}`, image);
+      });
+      
+      const response = await fetch(`http://localhost:3000/api/project/${params.id}/prompt`, {
+        method: 'PUT',
+        body: formData
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        // Clear the new images and reload the project data
+        setPromptImages([]);
+        
+        // Refresh project data to get updated image URLs
+        const projectResponse = await fetch(`http://localhost:3000/api/project/${params.id}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ id: params.id })
+        });
+        
+        if (projectResponse.ok) {
+          const projectData = await projectResponse.json();
+          setSavedPromptImageUrls(projectData.promptImageUrls || []);
+        }
+        
+        // Show success toast
+        setToastMessage('Project prompt saved.');
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 3000);
+      } else {
+        console.error('Failed to save prompt:', result.error);
+      }
+    } catch (error) {
+      console.error('Failed to save prompt:', error);
+    } finally {
+      setIsPromptSaving(false);
+    }
   };
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -174,6 +258,34 @@ export default function ProjectPage({ params }: PageProps) {
 
   const handleRemoveImage = (index: number) => {
     setPromptImages(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleRemoveSavedImage = async (index: number) => {
+    const attachmentToDelete = savedPromptAttachments[index];
+    if (!attachmentToDelete) return;
+
+    try {
+      const response = await fetch(`http://localhost:3000/api/project/${params.id}/attachment/${attachmentToDelete.attachmentId}`, {
+        method: 'DELETE'
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        // Remove from local state
+        setSavedPromptImageUrls(prev => prev.filter((_, i) => i !== index));
+        setSavedPromptAttachments(prev => prev.filter((_, i) => i !== index));
+        
+        // Show success toast
+        setToastMessage('Attachment deleted.');
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 3000);
+      } else {
+        console.error('Failed to delete attachment:', result.error);
+      }
+    } catch (error) {
+      console.error('Failed to delete attachment:', error);
+    }
   };
 
   const handlePaste = async (event: React.ClipboardEvent) => {
@@ -195,15 +307,94 @@ export default function ProjectPage({ params }: PageProps) {
     }
   };
 
-  const handleCreateSet = () => {
-    if (newSetTitle.trim()) {
-      // TODO: Add API call to create set
-      console.log('Creating set:', newSetTitle);
-      setIsSetModalOpen(false);
-      setNewSetTitle('');
-      // For now, just close the modal
-      // In a real app, you would add the new set to the sets list and navigate to it
+  const handleCreateSet = async () => {
+    try {
+      const response = await fetch(`http://localhost:3000/api/project/${params.id}/set/new`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: 'Untitled'
+        })
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        // Refresh the project data to get the new set
+        const projectResponse = await fetch(`http://localhost:3000/api/project/${params.id}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ id: params.id })
+        });
+        
+        if (projectResponse.ok) {
+          const projectData = await projectResponse.json();
+          setProject(projectData);
+        }
+      } else {
+        console.error('Error creating set:', data.error);
+      }
+    } catch (error) {
+      console.error('Error creating set:', error);
     }
+  };
+
+  const handleEditSet = (setId: string, currentName: string) => {
+    setEditingSet(setId);
+    setEditingSetName(currentName);
+  };
+
+  const handleSaveSetEdit = async (setId: string) => {
+    if (!editingSetName.trim()) return;
+
+    try {
+      const response = await fetch(`http://localhost:3000/api/project/${params.id}/set/${setId}/name`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: editingSetName.trim()
+        })
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        // Update the set in local state
+        setProject(prev => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            sets: prev.sets.map(set => 
+              set.id === setId 
+                ? { ...set, name: editingSetName.trim() }
+                : set
+            )
+          };
+        });
+        setEditingSet(null);
+        setEditingSetName('');
+        
+        // Show success toast
+        setToastMessage('Set name updated.');
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 3000);
+      } else {
+        console.error('Error updating set name:', data.error);
+      }
+    } catch (error) {
+      console.error('Error updating set name:', error);
+    }
+  };
+
+  const handleCancelSetEdit = () => {
+    setEditingSet(null);
+    setEditingSetName('');
   };
 
 
@@ -217,14 +408,14 @@ export default function ProjectPage({ params }: PageProps) {
           <div className="space-y-8">
             {/* Project Title */}
             <div>
-              <h1 className="text-5xl mb-2 tracking-tighter">{project.title}</h1>
+              <h1 className="text-5xl mb-2 tracking-tighter">{project.name}</h1>
             </div>
             
             {/* Master Prompt */}
             <div 
-              className="rounded-lg relative overflow-hidden" 
+              className="rounded-lg relative overflow-hidden mb-8" 
               style={{ 
-                aspectRatio: '1.618/1', 
+                aspectRatio: '4/1', 
                 backgroundColor: '#1D1D1D' 
               }}
             >
@@ -233,7 +424,7 @@ export default function ProjectPage({ params }: PageProps) {
                 {/* Label in top left */}
                 <div className="mb-4 flex items-center gap-2">
                   <h2 className="font-['Helvetica'] text-sm font-medium text-white uppercase tracking-tight">
-                    MASTER PROMPT
+                    PROJECT PROMPT
                   </h2>
                   <div className="group relative">
                     <svg 
@@ -251,67 +442,41 @@ export default function ProjectPage({ params }: PageProps) {
                     </svg>
                     {/* Tooltip */}
                     <div className="absolute left-0 top-6 invisible group-hover:visible bg-gray-900 text-white text-xs rounded py-1 px-2 whitespace-nowrap z-20">
-                      Define the master prompt for all generations in this project
+                      Define the project prompt for all generations in this project
                     </div>
                   </div>
                 </div>
                 
-                {/* Content area with images and textarea */}
-                <div className="flex-1 flex flex-col pr-16">
-                  {/* Uploaded Images Display */}
-                  {promptImages.length > 0 && (
-                    <div className="mb-4 flex flex-wrap gap-3">
-                      {promptImages.map((image, index) => (
-                        <div key={index} className="relative group">
-                          <img
-                            src={URL.createObjectURL(image)}
-                            alt={`Prompt image ${index + 1}`}
-                            className="w-20 h-20 object-cover rounded-lg border border-gray-600 shadow-sm"
-                          />
-                          <button
-                            onClick={() => handleRemoveImage(index)}
-                            className="absolute -top-2 -right-2 w-6 h-6 bg-gray-800 hover:bg-red-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-lg border border-gray-600"
-                          >
-                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                {/* Textarea with attachment button */}
+                <div className="flex-1 relative">
+                  <textarea
+                    value={projectPrompt}
+                    onChange={(e) => setProjectPrompt(e.target.value)}
+                    onPaste={handlePaste}
+                    placeholder="Enter your project prompt here..."
+                    className="w-full h-full bg-transparent border-none focus:outline-none focus:ring-0 text-white placeholder-gray-400 resize-none pr-12 pb-12"
+                    style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}
+                  />
                   
-                  {/* Textarea with attachment button */}
-                  <div className="flex-1 relative">
-                    <textarea
-                      value={masterPrompt}
-                      onChange={(e) => setMasterPrompt(e.target.value)}
-                      onPaste={handlePaste}
-                      placeholder="Enter your master prompt here..."
-                      className="w-full h-full bg-transparent border-none focus:outline-none focus:ring-0 text-white placeholder-gray-400 resize-none pr-12 pb-12"
-                      style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}
+                  {/* Paperclip/Attachment button */}
+                  <div className="absolute bottom-2 left-2">
+                    <input
+                      type="file"
+                      id="prompt-images"
+                      multiple
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="hidden"
                     />
-                    
-                    {/* Paperclip/Attachment button */}
-                    <div className="absolute bottom-2 left-2">
-                      <input
-                        type="file"
-                        id="prompt-images"
-                        multiple
-                        accept="image/*"
-                        onChange={handleImageUpload}
-                        className="hidden"
-                      />
-                      <label
-                        htmlFor="prompt-images"
-                        className="inline-flex items-center justify-center w-8 h-8 bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white rounded-full cursor-pointer transition-all shadow-sm"
-                        title="Attach images"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-                        </svg>
-                      </label>
-                    </div>
+                    <label
+                      htmlFor="prompt-images"
+                      className="inline-flex items-center justify-center w-8 h-8 bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white rounded-full cursor-pointer transition-all shadow-sm"
+                      title="Attach images"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                      </svg>
+                    </label>
                   </div>
                 </div>
                 
@@ -320,7 +485,7 @@ export default function ProjectPage({ params }: PageProps) {
                   onClick={handleSavePrompt}
                   disabled={isPromptSaving}
                   className="absolute bottom-6 right-6 w-10 h-10 bg-white hover:bg-gray-100 disabled:bg-gray-300 disabled:cursor-not-allowed text-black rounded-full flex items-center justify-center transition-colors shadow-lg"
-                  title="Save Master Prompt"
+                  title="Save Project Prompt"
                 >
                   {isPromptSaving ? (
                     <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -334,6 +499,98 @@ export default function ProjectPage({ params }: PageProps) {
                 </button>
               </div>
             </div>
+
+            {/* Gallery Section - Below Project Prompt */}
+            {(savedPromptImageUrls.length > 0 || promptImages.length > 0) && (
+              <div className="mb-8">
+                <div className="mb-4 flex items-center gap-2">
+                  <h2 className="font-['Helvetica'] text-sm font-medium text-white uppercase tracking-tight">
+                    ATTACHMENTS
+                  </h2>
+                </div>
+                <div className="grid grid-cols-4 gap-3">
+                  {/* Display saved images with varying sizes */}
+                  {savedPromptImageUrls.map((imageUrl, index) => {
+                    const isLarge = index % 5 === 0;
+                    const isTall = index % 5 === 2;
+                    return (
+                      <div 
+                        key={`saved-${index}`} 
+                        className={`relative group overflow-hidden rounded-xl shadow-lg border border-gray-600/30 hover:shadow-xl transition-all duration-300 hover:scale-[1.02] ${
+                          isLarge ? 'col-span-2 row-span-2 aspect-square' :
+                          isTall ? 'row-span-2 aspect-[3/4]' : 
+                          'aspect-square'
+                        }`}
+                        style={{
+                          background: `linear-gradient(135deg, ${
+                            index % 4 === 0 ? 'rgba(59, 130, 246, 0.1)' : 
+                            index % 4 === 1 ? 'rgba(168, 85, 247, 0.1)' : 
+                            index % 4 === 2 ? 'rgba(34, 197, 94, 0.1)' : 
+                            'rgba(251, 146, 60, 0.1)'
+                          } 0%, transparent 100%)`
+                        }}
+                      >
+                        <img
+                          src={imageUrl}
+                          alt={`Saved prompt image ${index + 1}`}
+                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                        <button
+                          onClick={() => handleRemoveSavedImage(index)}
+                          className="absolute top-2 right-2 w-7 h-7 bg-black/70 hover:bg-red-600/90 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 backdrop-blur-sm border border-white/20"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    );
+                  })}
+                  
+                  {/* Display new images to be saved */}
+                  {promptImages.map((image, index) => {
+                    const totalSaved = savedPromptImageUrls.length;
+                    const adjustedIndex = totalSaved + index;
+                    const isLarge = adjustedIndex % 5 === 0;
+                    const isTall = adjustedIndex % 5 === 2;
+                    return (
+                      <div 
+                        key={`new-${index}`} 
+                        className={`relative group overflow-hidden rounded-xl shadow-lg border border-gray-600/30 hover:shadow-xl transition-all duration-300 hover:scale-[1.02] ${
+                          isLarge ? 'col-span-2 row-span-2 aspect-square' :
+                          isTall ? 'row-span-2 aspect-[3/4]' : 
+                          'aspect-square'
+                        }`}
+                        style={{
+                          background: `linear-gradient(135deg, ${
+                            adjustedIndex % 4 === 0 ? 'rgba(59, 130, 246, 0.1)' : 
+                            adjustedIndex % 4 === 1 ? 'rgba(168, 85, 247, 0.1)' : 
+                            adjustedIndex % 4 === 2 ? 'rgba(34, 197, 94, 0.1)' : 
+                            'rgba(251, 146, 60, 0.1)'
+                          } 0%, transparent 100%)`
+                        }}
+                      >
+                        <img
+                          src={URL.createObjectURL(image)}
+                          alt={`New prompt image ${index + 1}`}
+                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                        <button
+                          onClick={() => handleRemoveImage(index)}
+                          className="absolute top-2 right-2 w-7 h-7 bg-black/70 hover:bg-red-600/90 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 backdrop-blur-sm border border-white/20"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Right Column - Sets starting at title level */}
@@ -347,11 +604,11 @@ export default function ProjectPage({ params }: PageProps) {
             
             {/* Sets Grid */}
             <div className="grid grid-cols-2 gap-4">
-              {sampleSets.map((set, index) => (
+              {project.sets && project.sets.length > 0 ? project.sets.map((set, index) => (
                 <div
                   key={set.id}
                   onClick={() => router.push(`/project/${params.id}/set/${set.id}`)}
-                  className="rounded-lg hover:shadow-lg transition-shadow cursor-pointer relative overflow-hidden"
+                  className="rounded-lg hover:shadow-lg transition-shadow cursor-pointer relative overflow-hidden group"
                   style={{ 
                     aspectRatio: '1.618 / 1', 
                     backgroundColor: '#1D1D1D',
@@ -364,26 +621,74 @@ export default function ProjectPage({ params }: PageProps) {
                   {/* Content Container */}
                   <div className="p-4 h-full flex flex-col justify-between">
                     {/* Set Title */}
-                    <div className="text-3xl mb-2 tracking-tighter text-gray-400 line-clamp-2">
-                      {set.name}
-                    </div>
+                    {editingSet === set.id ? (
+                      <div className="w-full" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="text"
+                          value={editingSetName}
+                          onChange={(e) => setEditingSetName(e.target.value)}
+                          onKeyPress={(e) => {
+                            if (e.key === 'Enter') {
+                              handleSaveSetEdit(set.id);
+                            } else if (e.key === 'Escape') {
+                              handleCancelSetEdit();
+                            }
+                          }}
+                          className="bg-gray-700 text-white px-2 py-1 rounded text-lg w-full focus:outline-none focus:ring-1 focus:ring-gray-500 mb-2"
+                          autoFocus
+                        />
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleSaveSetEdit(set.id)}
+                            className="bg-white hover:bg-gray-200 text-black px-2 py-1 rounded text-xs flex items-center gap-1 transition-colors"
+                          >
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                            Save
+                          </button>
+                          <button
+                            onClick={handleCancelSetEdit}
+                            className="bg-gray-600 hover:bg-gray-500 text-white px-2 py-1 rounded text-xs flex items-center gap-1 transition-colors"
+                          >
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-3xl mb-2 tracking-tighter text-gray-400 line-clamp-2 flex items-start gap-2">
+                        <span className="flex-1">{set.name}</span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditSet(set.id, set.name);
+                          }}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-500 hover:text-gray-300 ml-1"
+                          title="Edit set name"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                          </svg>
+                        </button>
+                      </div>
+                    )}
                     
                     {/* Bottom info */}
                     <div className="flex justify-between items-end">
                       <div className="font-['IBM_Plex_Mono'] text-xs text-gray-400 uppercase tracking-wider">
-                        MODIFIED {set.lastModified.toUpperCase()}
-                      </div>
-                      <div className="text-xs text-gray-400 uppercase tracking-wider">
-                        {set.itemCount} ITEMS
+                        SET ID: {set.id.substring(0, 8).toUpperCase()}
                       </div>
                     </div>
                   </div>
                 </div>
-              ))}
+              )) : null}
               
               {/* Add New Set Card */}
               <div
-                onClick={() => setIsSetModalOpen(true)}
+                onClick={handleCreateSet}
                 className="rounded-lg hover:shadow-lg transition-shadow cursor-pointer relative overflow-hidden flex items-center justify-center"
                 style={{ aspectRatio: '1.618 / 1', backgroundColor: '#1D1D1D' }}
               >
@@ -408,57 +713,16 @@ export default function ProjectPage({ params }: PageProps) {
           </div>
         </div>
 
-        {/* Create Set Modal */}
-        {isSetModalOpen && (
+
+        {/* Toast Notification */}
+        {showToast && (
           <div 
-            className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50"
-            onClick={() => {
-              setIsSetModalOpen(false);
-              setNewSetTitle('');
-            }}
+            className="fixed top-6 right-6 bg-gray-800 text-white px-4 py-3 rounded-lg shadow-lg z-50 flex items-center gap-2 animate-in slide-in-from-top-2 duration-300"
           >
-            <div 
-              className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-lg p-6 w-full max-w-md mx-4 shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h2 className="text-xl text-gray-900 dark:text-white mb-4">
-                Create Set
-              </h2>
-              
-              <div className="mb-4">
-                <label htmlFor="set-title" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  SET TITLE
-                </label>
-                <input
-                  id="set-title"
-                  type="text"
-                  value={newSetTitle}
-                  onChange={(e) => setNewSetTitle(e.target.value)}
-                  placeholder="Enter set title..."
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  autoFocus
-                />
-              </div>
-              
-              <div className="flex justify-end gap-3">
-                <button
-                  onClick={() => {
-                    setIsSetModalOpen(false);
-                    setNewSetTitle('');
-                  }}
-                  className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleCreateSet}
-                  disabled={!newSetTitle.trim()}
-                  className="px-4 py-2 bg-white hover:bg-gray-100 disabled:bg-gray-400 disabled:cursor-not-allowed text-black disabled:text-white border border-gray-300 rounded-md transition-colors"
-                >
-                  Create Set
-                </button>
-              </div>
-            </div>
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            <span className="font-medium">{toastMessage}</span>
           </div>
         )}
 
