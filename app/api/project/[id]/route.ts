@@ -9,3 +9,9 @@ export async function POST(request: NextRequest) {
     const project = await getProject(id);
     return NextResponse.json(project);
 }
+
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+    const { id } = await params;
+    const project = await getProject(id);
+    return NextResponse.json(project);
+}

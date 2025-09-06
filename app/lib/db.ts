@@ -51,6 +51,31 @@ export async function saveImageToSet(imageId: string, setId: string) {
     await sql`INSERT INTO images (id, set_id) VALUES (${imageId}, ${setId})`;
 }
 
+export async function saveGeneratedImages(images: Array<{id: string, imageData: string, definition: string}>, setId: string) {
+    const savedImages = [];
+    
+    for (const image of images) {
+        try {
+            // Upload image to blob storage
+            const imageBuffer = Buffer.from(image.imageData, 'base64');
+            const imageUrl = await uploadImage(image.id, imageBuffer);
+            
+            // Save image record to database
+            await sql`INSERT INTO images (id, set_id, definition) VALUES (${image.id}, ${setId}, ${image.definition})`;
+            
+            savedImages.push({
+                id: image.id,
+                url: imageUrl,
+                definition: image.definition
+            });
+        } catch (error) {
+            console.error(`Failed to save image ${image.id}:`, error);
+        }
+    }
+    
+    return savedImages;
+}
+
 export async function listProjects(): Promise<Project[]> {
     const projects = await sql`SELECT * FROM projects`;
     return projects.map((project: any) => ({

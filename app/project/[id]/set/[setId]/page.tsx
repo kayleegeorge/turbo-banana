@@ -4,71 +4,7 @@ import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { RotateCcw, Loader2 } from 'lucide-react';
 
-// Import preset configurations
-const PRESETS = {
-  font: {
-    name: 'font',
-    prompt: 'letters of the alphabet',
-    count: 26,
-  },
-  gameAssets: {
-    name: 'gameAssets',
-    prompt: 'game assets',
-    count: 10,
-  }
-};
 
-// Sample data - in a real app, this would come from an API
-const sampleProjects = [
-  {
-    id: 1,
-    title: 'The Monsters',
-    description: 'A modern e-commerce solution built with Next.js and TypeScript',
-    status: 'Active',
-    lastUpdated: '2 days ago',
-    tags: ['Next.js', 'TypeScript', 'Tailwind CSS']
-  },
-  {
-    id: 2,
-    title: 'Task Management App',
-    description: 'Collaborative task management tool with real-time updates',
-    status: 'In Progress',
-    lastUpdated: '5 hours ago',
-    tags: ['React', 'Node.js', 'Socket.io']
-  },
-  {
-    id: 3,
-    title: 'Analytics Dashboard',
-    description: 'Data visualization dashboard for business insights',
-    status: 'Completed',
-    lastUpdated: '1 week ago',
-    tags: ['React', 'D3.js', 'Python']
-  },
-  {
-    id: 4,
-    title: 'Mobile Banking App',
-    description: 'Secure mobile banking application with biometric authentication',
-    status: 'Active',
-    lastUpdated: '3 days ago',
-    tags: ['React Native', 'Node.js', 'MongoDB']
-  },
-  {
-    id: 5,
-    title: 'AI Chat Assistant',
-    description: 'Intelligent chat assistant powered by machine learning',
-    status: 'In Progress',
-    lastUpdated: '1 day ago',
-    tags: ['Python', 'TensorFlow', 'FastAPI']
-  },
-  {
-    id: 6,
-    title: 'Video Streaming Platform',
-    description: 'Netflix-like streaming platform with content management',
-    status: 'Planning',
-    lastUpdated: '4 days ago',
-    tags: ['React', 'AWS', 'CDN']
-  }
-];
 
 
 interface PageProps {
@@ -92,15 +28,36 @@ export default function SetPage({ params }: PageProps) {
   const resolvedParams = use(params);
   const [isGenerating, setIsGenerating] = useState(false);
   const [setPrompt, setSetPrompt] = useState('');
-  const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
-  const [isPromptSaving, setIsPromptSaving] = useState(false);
-  const [setPromptImages, setSetPromptImages] = useState<File[]>([]);
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [isLoadingImages, setIsLoadingImages] = useState(true);
-  
-  // Find the project - in a real app, this would be API calls
-  const project = sampleProjects.find(p => p.id === parseInt(resolvedParams.id));
+  const [project, setProject] = useState<any>(null);
+  const [isLoadingProject, setIsLoadingProject] = useState(true);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+
+  // Load project data
+  useEffect(() => {
+    const loadProject = async () => {
+      try {
+        const response = await fetch(`/api/project/${resolvedParams.id}`);
+        const data = await response.json();
+        setProject(data);
+        
+        // Load the current set's prompt
+        const currentSet = data.sets?.find((set: any) => set.id === resolvedParams.setId);
+        if (currentSet && currentSet.prompts) {
+          setSetPrompt(currentSet.prompts);
+        }
+      } catch (error) {
+        console.error('Failed to load project:', error);
+      } finally {
+        setIsLoadingProject(false);
+      }
+    };
+
+    loadProject();
+  }, [resolvedParams.id, resolvedParams.setId]);
 
   // Load existing images on page load
   useEffect(() => {
@@ -128,6 +85,54 @@ export default function SetPage({ params }: PageProps) {
     loadExistingImages();
   }, [resolvedParams.id, resolvedParams.setId]);
 
+  // Show loading state while fetching project
+  if (isLoadingProject) {
+    return (
+      <div className="min-h-screen bg-background text-foreground flex">
+        {/* Left Sidebar Skeleton */}
+        <div className="bg-black border-r border-white flex flex-col" style={{ width: '640px' }}>
+          {/* Header Skeleton */}
+          <div className="p-6">
+            <div className="h-12 bg-gray-700 rounded animate-pulse"></div>
+          </div>
+
+
+          {/* Set Prompt Section Skeleton */}
+          <div className="px-6">
+            <div 
+              className="rounded-lg relative overflow-hidden mb-6 bg-gray-700 animate-pulse" 
+              style={{ aspectRatio: '1.618/1' }}
+            >
+            </div>
+
+            {/* Generate Button Skeleton */}
+            <div className="w-full h-12 bg-gray-700 rounded-lg animate-pulse"></div>
+          </div>
+
+          <div className="flex-1"></div>
+        </div>
+
+        {/* Main Content Area Skeleton */}
+        <div className="flex-1 p-6 relative">
+          {/* Header Skeleton */}
+          <div className="mb-6">
+            <div className="h-12 w-24 bg-gray-700 rounded animate-pulse"></div>
+          </div>
+
+          {/* Grid Skeleton */}
+          <div className="grid grid-cols-4 gap-4">
+            {Array.from({ length: 12 }).map((_, index) => (
+              <div
+                key={index}
+                className="aspect-square rounded-lg bg-gray-700 animate-pulse"
+              ></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // If project not found, show error
   if (!project) {
     return (
@@ -150,35 +155,40 @@ export default function SetPage({ params }: PageProps) {
     setGenerationError(null);
     
     try {
-      // Check if we have a style image and prompt
-      if (!setPromptImages.length || !setPrompt) {
-        setGenerationError('Please add a style image and enter a prompt before generating.');
+      // Check if we have a prompt
+      if (!setPrompt) {
+        setGenerationError('Please enter a prompt before generating.');
         setIsGenerating(false);
         return;
       }
 
-      // Convert all uploaded images to base64
-      const styleImagesPromises = setPromptImages.map(file => {
-        return new Promise<{ data: string; mimeType: string }>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onloadend = () => {
-            const result = reader.result as string;
-            const base64Data = result.split(',')[1]; // Remove data:image/xxx;base64, prefix
-            resolve({
-              data: base64Data,
-              mimeType: file.type
-            });
-          };
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
+      // Save the prompt to database first
+      try {
+        await fetch(`/api/project/${resolvedParams.id}/set/${resolvedParams.setId}/prompt`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            prompt: setPrompt.trim()
+          })
         });
-      });
+      } catch (error) {
+        console.error('Error saving set prompt:', error);
+        // Continue with generation even if saving fails
+      }
 
-      const styleImages = await Promise.all(styleImagesPromises);
+      // No style images needed for now
+      const styleImages: { data: string; mimeType: string }[] = [];
 
-      // Get preset config for count and preset info
-      const itemCount = selectedPreset ? PRESETS[selectedPreset as keyof typeof PRESETS]?.count || 12 : 12;
+      // Use default count of 12 items
+      const itemCount = 12;
       
+      // Show toast that request was received
+      setToastMessage('Generation request received. Processing...');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+
       // Call the generate API with asset generation flow
       const response = await fetch('/api/generate', {
         method: 'POST',
@@ -189,7 +199,6 @@ export default function SetPage({ params }: PageProps) {
           styleImages: styleImages,
           prompt: setPrompt,
           count: itemCount,
-          preset: selectedPreset,
           setId: resolvedParams.setId // Include setId to save images automatically
         }),
       });
@@ -221,41 +230,10 @@ export default function SetPage({ params }: PageProps) {
     }
   };
 
-  const handleSavePrompt = async () => {
-    setIsPromptSaving(true);
-    setTimeout(() => setIsPromptSaving(false), 1000);
-  };
 
-  const handleSetImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files || []);
-    setSetPromptImages(prev => [...prev, ...files]);
-  };
 
-  const handleRemoveSetImage = (index: number) => {
-    setSetPromptImages(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const handleSetPaste = async (event: React.ClipboardEvent) => {
-    const items = event.clipboardData.items;
-    const imageFiles: File[] = [];
-
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
-      if (item.type.startsWith('image/')) {
-        const file = item.getAsFile();
-        if (file) {
-          imageFiles.push(file);
-        }
-      }
-    }
-
-    if (imageFiles.length > 0) {
-      setSetPromptImages(prev => [...prev, ...imageFiles]);
-    }
-  };
-
-  // Generate empty cards for the grid based on preset or default
-  const itemCount = selectedPreset ? PRESETS[selectedPreset as keyof typeof PRESETS]?.count || 12 : 12;
+  // Generate empty cards for the grid - default to 12 items
+  const itemCount = 12;
   const emptyCards = Array.from({ length: itemCount }, (_, index) => index);
 
   return (
@@ -265,31 +243,10 @@ export default function SetPage({ params }: PageProps) {
         {/* Header */}
         <div className="p-6">
           <div className="text-5xl tracking-tighter text-white">
-            {project.title} / Set {resolvedParams.setId}
+            {project.name} / {project.sets?.find((set: any) => set.id === resolvedParams.setId)?.name || `Set ${resolvedParams.setId}`}
           </div>
         </div>
 
-        {/* Preset Tabs Section */}
-        <div className="px-6 mb-4">
-          <div className="flex gap-1">
-            {Object.entries(PRESETS).map(([key, preset]) => (
-              <button
-                key={key}
-                onClick={() => {
-                  setSelectedPreset(key);
-                  setSetPrompt(preset.prompt);
-                }}
-                className={`px-4 py-2 text-sm font-medium transition-colors rounded-t-lg ${
-                  selectedPreset === key
-                    ? 'bg-white text-black'
-                    : 'bg-gray-700 text-white hover:bg-gray-600'
-                }`}
-              >
-                {preset.name} ({preset.count})
-              </button>
-            ))}
-          </div>
-        </div>
 
         {/* Set Prompt Section */}
         <div className="px-6">
@@ -328,82 +285,19 @@ export default function SetPage({ params }: PageProps) {
                 </div>
               </div>
               
-              {/* Content area with images and textarea */}
-              <div className="flex-1 flex flex-col pr-16">
-                {/* Uploaded Images Display */}
-                {setPromptImages.length > 0 && (
-                  <div className="mb-4 flex flex-wrap gap-3">
-                    {setPromptImages.map((image, index) => (
-                      <div key={index} className="relative group">
-                        <img
-                          src={URL.createObjectURL(image)}
-                          alt={`Set prompt image ${index + 1}`}
-                          className="w-20 h-20 object-cover rounded-lg border border-gray-600 shadow-sm"
-                        />
-                        <button
-                          onClick={() => handleRemoveSetImage(index)}
-                          className="absolute -top-2 -right-2 w-6 h-6 bg-gray-800 hover:bg-red-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-lg border border-gray-600"
-                        >
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                
-                {/* Textarea with attachment button */}
+              {/* Content area with textarea */}
+              <div className="flex-1 flex flex-col">
+                {/* Textarea */}
                 <div className="flex-1 relative">
                   <textarea
                     value={setPrompt}
                     onChange={(e) => setSetPrompt(e.target.value)}
-                    onPaste={handleSetPaste}
                     placeholder="Enter set-specific prompt..."
-                    className="w-full h-full bg-transparent border-none focus:outline-none focus:ring-0 text-white placeholder-gray-400 resize-none pr-12 pb-12"
+                    className="w-full h-full bg-transparent border-none focus:outline-none focus:ring-0 text-white placeholder-gray-400 resize-none"
                     style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}
                   />
-                  
-                  {/* Paperclip/Attachment button */}
-                  <div className="absolute bottom-2 left-2">
-                    <input
-                      type="file"
-                      id="set-prompt-images"
-                      multiple
-                      accept="image/*"
-                      onChange={handleSetImageUpload}
-                      className="hidden"
-                    />
-                    <label
-                      htmlFor="set-prompt-images"
-                      className="inline-flex items-center justify-center w-8 h-8 bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white rounded-full cursor-pointer transition-all shadow-sm"
-                      title="Attach images"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-                      </svg>
-                    </label>
-                  </div>
                 </div>
               </div>
-              
-              {/* Circular save button in bottom right */}
-              <button
-                onClick={handleSavePrompt}
-                disabled={isPromptSaving}
-                className="absolute bottom-6 right-6 w-10 h-10 bg-white hover:bg-gray-100 disabled:bg-gray-300 disabled:cursor-not-allowed text-black rounded-full flex items-center justify-center transition-colors shadow-lg"
-                title="Save Set Prompt"
-              >
-                {isPromptSaving ? (
-                  <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                ) : (
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                )}
-              </button>
             </div>
           </div>
 
@@ -562,6 +456,16 @@ export default function SetPage({ params }: PageProps) {
           </div>
         )}
       </div>
+
+      {/* Toast Notification */}
+      {showToast && (
+        <div className="fixed top-6 right-6 bg-gray-800 text-white px-4 py-3 rounded-lg shadow-lg z-50 flex items-center gap-2 animate-in slide-in-from-top-2 duration-300">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span className="font-medium">{toastMessage}</span>
+        </div>
+      )}
     </div>
   );
 }
