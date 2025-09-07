@@ -6,13 +6,13 @@ With the introduction of Nano Banana, AI image models have shown for the first t
 
 ## Examples
 
-Here are some sample images that demonstrate the types of assets you can work with:
+This is great for things like character asset generation (e.g. NPCs, plants, etc.) and product lines. Here are some examples we made of brand styles and asset sets:
 
 <div >
-  <img src="public/backpack.png" alt="Backpack Example" width="200" style="margin: 10px;">
-  <img src="public/grass.png" alt="Grass Example" width="200" style="margin: 10px;">
   <img src="public/labubu.png" alt="Labubu Character Example" width="200" style="margin: 10px;">
+  <img src="public/backpack.png" alt="Backpack Example" width="200" style="margin: 10px;">
   <img src="public/poke.png" alt="Poke Example" width="200" style="margin: 10px;">
+  <img src="public/grass.png" alt="Grass Example" width="200" style="margin: 10px;">
 </div>
 
 -----
