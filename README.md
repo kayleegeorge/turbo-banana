@@ -8,12 +8,10 @@ With the introduction of Nano Banana, AI image models have shown for the first t
 
 This is great for things like character asset generation (e.g. NPCs, plants, etc.) and product lines. Here are some examples we made of brand styles and asset sets:
 
-<div >
-  <img src="public/labubu.png" alt="Labubu Character Example" width="200" style="margin: 10px;">
-  <img src="public/backpack.png" alt="Backpack Example" width="200" style="margin: 10px;">
-  <img src="public/poke.png" alt="Poke Example" width="200" style="margin: 10px;">
-  <img src="public/grass.png" alt="Grass Example" width="200" style="margin: 10px;">
-</div>
+  <img src="public/labubu.png" alt="Labubu Character Example" width="600" style="margin: 10px;">
+  <img src="public/backpack.png" alt="Backpack Example" width="600" style="margin: 10px;">
+  <img src="public/poke.png" alt="Poke Example" width="600" style="margin: 10px;">
+  <img src="public/grass.png" alt="Grass Example" width="600" style="margin: 10px;">
 
 -----
 ## Getting Started
