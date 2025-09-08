@@ -33,7 +33,7 @@ function Navbar() {
           <div className="flex items-center">
             <Link href="/" className="cursor-pointer">
               <h1 className="text-lg font-bold italic text-gray-900 dark:text-white hover:opacity-80 transition-opacity">
-                TurboBanana
+                Banana Bunch
               </h1>
             </Link>
           </div>
